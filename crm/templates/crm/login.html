@@ -1,0 +1,46 @@
+{% extends "crm/base.html" %}
+{% block title %}Вход · PlantFlow CRM{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <section class="auth-hero">
+    <div class="auth-hero-card">
+      <div class="kicker">CRM для магазина растений</div>
+      <h1 class="brand-title">Plant<span>Flow</span> CRM</h1>
+      <p class="hero-copy">
+        Единое окно для входящих сообщений, клиентов, склада, скриптов, обучения и аналитики.
+      </p>
+      <div class="feature-grid">
+        <div class="feature"><strong>Авторизация</strong> Логин и пароль для администратора. Для сотрудников нужен код из почты.</div>
+        <div class="feature"><strong>Омниканал</strong> Telegram, VK, WhatsApp, Email, сайт, Flowwow и Авито.</div>
+        <div class="feature"><strong>Автоматизация</strong> Скрипты, follow-up, триггеры по остаткам и быстрый тест знаний.</div>
+        <div class="feature"><strong>Контроль</strong> Логирование, тайм-трекинг, блокировка аномалий и роли доступа.</div>
+      </div>
+    </div>
+  </section>
+  <section class="auth-panel">
+    <form class="login-card card" method="post">
+      {% csrf_token %}
+      <h2>Вход в систему</h2>
+      <p class="section-desc">Используйте демо-аккаунты ниже, чтобы сразу открыть CRM.</p>
+      {% if error %}<div class="ghost-box" style="margin: 12px 0; color: var(--danger);">{{ error }}</div>{% endif %}
+      <div class="field">
+        <label for="username">Логин</label>
+        <input id="username" name="username" autocomplete="username" placeholder="admin / front / hybrid" required>
+      </div>
+      <div class="field">
+        <label for="password">Пароль</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="admin123" required>
+      </div>
+      <div class="field">
+        <label for="code">Код сотрудника</label>
+        <input id="code" name="code" inputmode="numeric" placeholder="246810">
+      </div>
+      <div class="row">
+        <button class="btn primary" type="submit">Войти</button>
+        <a class="btn" href="{% url 'crm:dashboard' %}">На дашборд</a>
+      </div>
+      <div class="divider"></div>
+    </form>
+  </section>
+</div>
+{% endblock %}

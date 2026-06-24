@@ -1,0 +1,1359 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Панель · PlantFlow CRM{% endblock %}
+{% block content %}
+{% if quick_test_question %}
+<div class="screen-lock-overlay" id="screen-lock">
+  <div class="screen-lock-modal">
+    <div class="lock-icon">БЛОК</div>
+    <h2>Быстрый тест</h2>
+    <p class="section-desc">Ответьте на вопрос, чтобы продолжить работу.</p>
+    <div class="divider"></div>
+    <div class="ghost-box" style="margin-top: 12px; font-size: 15px; text-align: left;">{{ quick_test_question }}</div>
+    <form method="post" class="form-grid" style="margin-top: 18px;" action=".">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="quick_test_answer">
+      <div class="field">
+        <label>Ваш ответ</label>
+        <input name="quick_answer" placeholder="Введите ответ..." autofocus>
+      </div>
+      <button class="btn primary" type="submit" style="width: 100%;">Проверить</button>
+    </form>
+    {% if current_role == 'admin' %}
+    <form method="post" style="margin-top: 10px;" action=".">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="quick_test_reset">
+      <button class="btn danger" type="submit" style="width: 100%;">Сбросить тест (админ)</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <p class="name">🌿 PlantFlow</p>
+      <p class="meta">{{ request.user.get_full_name|default:request.user.username }} · {{ current_user_profile.get_role_display|default:"Пользователь" }}</p>
+    </div>
+    <nav class="nav">
+      {% for key,label in nav_items %}
+        <a class="{% if page == key %}active{% endif %}" href="{% url 'crm:dashboard' %}?page={{ key }}{% if key == 'dashboard' %}#overview{% else %}#{{ key }}{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-footer">
+      <div class="pill-row">
+        <span class="chip good">Online</span>
+        <span class="chip info">{{ request.META.REMOTE_ADDR|default:"127.0.0.1" }}</span>
+      </div>
+      <div style="margin-top: 10px; color: rgba(255,255,255,.78); font-size: 13px; line-height: 1.6;">
+        Последняя активность: {{ now|date:"d.m, H:i" }}
+      </div>
+      <form method="post" style="margin-top: 10px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{% if current_clock_event %}clock_out{% else %}clock_in{% endif %}">
+        <button class="btn" type="submit" style="width:100%;font-size:12px;{% if current_clock_event %}background:rgba(255,200,50,0.2);border-color:rgba(255,200,50,0.4);{% endif %}">
+          {% if current_clock_event %}⏻ Завершить смену{% else %}▷ Начать смену{% endif %}
+        </button>
+      </form>
+
+    </div>
+  </aside>
+  <main class="content">
+    <header class="topbar">
+      <div>
+        <h1>Дашборд</h1>
+        <p class="sub">Приоритеты, статусы, события и быстрые действия.</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="bell-wrap">
+          <button class="btn ghost bell-btn" onclick="toggleBell(event)" id="bell-btn">
+            🔔
+            {% with total_notifications=active_chats|add:overdue_count|add:leads_count %}
+            {% if total_notifications > 0 %}
+              <span class="bell-badge">{{ total_notifications }}</span>
+            {% endif %}
+            {% endwith %}
+          </button>
+          <div class="bell-drop" id="bell-drop">
+            <strong style="display: block; margin-bottom: 10px;">Уведомления</strong>
+            <div class="bell-item {% if active_chats == 0 %}muted{% endif %}">
+              <span class="chip info">📩 {{ active_chats }}</span> непрочитанных сообщений
+            </div>
+            <div class="bell-item {% if overdue_count == 0 %}muted{% endif %}">
+              <span class="chip danger">⚠️ {{ overdue_count }}</span> просроченных тикетов
+            </div>
+            <div class="bell-item {% if leads_count == 0 %}muted{% endif %}">
+              <span class="chip warn">🆕 {{ leads_count }}</span> новых лидов
+            </div>
+            <div style="margin-top: 10px;">
+              <a class="btn" href="{% url 'crm:dashboard' %}?page=inbox" style="width: 100%;">Перейти в единое окно</a>
+            </div>
+          </div>
+        </div>
+        <a class="btn" href="{% url 'crm:dashboard' %}?page=knowledge#knowledge">Быстрый тест</a>
+        <a class="btn" href="{% url 'crm:dashboard' %}?page=tasks#tasks">Новая задача</a>
+        <a class="btn danger" href="{% url 'crm:logout' %}">Выйти</a>
+      </div>
+    </header>
+
+    <section class="layout">
+      <div class="hero-banner" id="overview">
+        <div>
+          <p class="title">Добро пожаловать, {{ request.user.get_full_name|default:request.user.username }}</p>
+          <p>CRM уже связана с PostgreSQL и Django. Ниже - клиенты, сообщения, задачи, товары, знания и аналитика.</p>
+        </div>
+        <div class="pill-row">
+          <span class="chip good">Физ. вход: {{ now|dt }}</span>
+          <span class="chip info">{{ request.META.REMOTE_ADDR|default:"127.0.0.1" }}</span>
+        </div>
+      </div>
+
+      <div class="grid-cards">
+        <div class="metric">
+          <div class="label">Новые лиды</div>
+          <div class="value">{{ leads_count }}</div>
+          <div class="delta">+4 за 7 дней</div>
+        </div>
+        <div class="metric">
+          <div class="label">Активные чаты</div>
+          <div class="value">{{ active_chats }}</div>
+          <div class="delta">Входящие требуют ответа</div>
+        </div>
+        <div class="metric">
+          <div class="label">Просрочено</div>
+          <div class="value">{{ overdue_count }}</div>
+          <div class="delta">Проверить дедлайны</div>
+        </div>
+        <div class="metric">
+          <div class="label">Выручка</div>
+          <div class="value">{{ revenue_total|money }}</div>
+          <div class="delta">По покупкам из базы</div>
+        </div>
+      </div>
+
+      {% if page == 'dashboard' %}
+      <section class="panel">
+        <h3 class="section-title">Выберите раздел</h3>
+        <p class="section-desc">Откройте нужный рабочий блок слева в меню.</p>
+        <div class="pill-row" style="margin-top: 14px;">
+          <a class="btn" href="{% url 'crm:dashboard' %}?page=inbox#inbox">Единое окно</a>
+          <a class="btn" href="{% url 'crm:dashboard' %}?page=clients#clients">Клиенты</a>
+          <a class="btn" href="{% url 'crm:dashboard' %}?page=tasks#tasks">Тикеты</a>
+          <a class="btn" href="{% url 'crm:dashboard' %}?page=products#products">Склад</a>
+          <a class="btn" href="{% url 'crm:dashboard' %}?page=knowledge#knowledge">Обучение</a>
+          {% if 'admin' in sections %}<a class="btn" href="{% url 'crm:dashboard' %}?page=admin#admin">Админка</a>{% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if page == 'inbox' %}
+      <section class="panel" id="inbox">
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <h3 class="section-title">Единое окно</h3>
+            <p class="section-desc">Telegram, VK, WhatsApp, Email, сайт, Flowwow и Авито в одном списке.</p>
+          </div>
+          <form method="post" style="margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="simulate_incoming">
+            <button class="btn" type="submit">Смоделировать входящее</button>
+          </form>
+        </div>
+        <div class="searchbar" style="margin-top: 14px;">
+          <form method="get" class="searchbar" style="grid-column: 1 / -1; margin: 0;">
+            <input name="q" placeholder="Поиск по сообщениям, клиентам и товарам..." value="{{ message_query }}">
+            <select name="channel">
+              {% for channel in channels %}
+                <option value="{{ channel }}" {% if channel_filter == channel %}selected{% endif %}>{{ channel|title }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn primary" type="submit">Фильтр</button>
+          </form>
+        </div>
+        <div class="dashboard-grid" style="margin-top: 16px; grid-template-columns: 1.2fr .8fr .7fr;">
+          <div class="panel">
+            <h3>Лента сообщений</h3>
+            <div class="mini-list">
+              {% for message in inbox_messages %}
+                <div class="mini-item">
+                  <div class="head">
+                    <strong class="title">{{ message.author_name }} · {{ message.channel }}</strong>
+                    <span class="chip {{ message.direction|status_class }}">{{ message.get_direction_display }}</span>
+                  </div>
+                  <div class="meta">{{ message.text }}</div>
+                  <div class="row" style="margin-top: 10px;">
+                    <a class="btn" href="{% url 'crm:dashboard' %}?page=clients&client={% if message.client %}{{ message.client.id }}{% endif %}#clients">Карточка</a>
+                    <a class="btn" href="{% url 'crm:dashboard' %}?page=inbox#reply">Ответ по скрипту</a>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="empty-state">Нет сообщений.</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>Карточка клиента</h3>
+            {% if selected_client %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ selected_client.name }}</strong>
+                  <span class="chip {{ selected_client.status|status_class }}">{{ selected_client.status_label }}</span>
+                </div>
+                <div class="meta">{{ selected_client.phone|default:"—" }} · {{ selected_client.email|default:"—" }}</div>
+                <div class="pill-row" style="margin-top: 10px;">
+                  {% for tag in selected_client.tags %}
+                    <span class="chip info">{{ tag }}</span>
+                  {% endfor %}
+                </div>
+                <div class="ghost-box" style="margin-top: 12px;">{{ selected_client.internal_note|default:"" }}</div>
+              </div>
+              <div class="divider"></div>
+              <form method="post" class="form-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="send_message">
+                <input type="hidden" name="client_id" value="{{ selected_client.id }}">
+                <div class="field">
+                  <label>Быстрое сообщение</label>
+                  <div class="row">
+                    <select name="channel" style="flex: 0 0 120px;">
+                      {% for channel in channels|slice:"1:" %}
+                        <option value="{{ channel }}" {% if selected_client.preferred_channel == channel %}selected{% endif %}>{{ channel }}</option>
+                      {% endfor %}
+                    </select>
+                    <input name="text" placeholder="Введите текст..." required style="flex: 1;">
+                    <button class="btn primary" type="submit">Написать</button>
+                  </div>
+                </div>
+              </form>
+              <div class="mini-list">
+                {% for item in selected_client.history|slice:":4" %}
+                  <div class="mini-item">
+                    <div class="head">
+                      <strong class="title">{{ item.type }}</strong>
+                      <span class="chip info">{{ item.at|dt }}</span>
+                    </div>
+                    <div class="meta">{{ item.text }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="empty-state">Выберите карточку клиента.</div>
+            {% endif %}
+          </div>
+
+          <div class="panel" id="reply">
+            <h3>Ответить</h3>
+            <form method="post" class="form-grid">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="send_message">
+              <input type="hidden" name="client_id" value="{{ selected_client.id|default:'' }}">
+              <div class="field">
+                <label>Канал</label>
+                <select name="channel">
+                  {% for channel in channels|slice:"1:" %}
+                    <option value="{{ channel }}" {% if selected_client.preferred_channel == channel %}selected{% endif %}>{{ channel }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label>Текст</label>
+                <textarea name="text" placeholder="Введите ответ..." required></textarea>
+              </div>
+              <button class="btn primary" type="submit">Написать</button>
+            </form>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if page == 'clients' %}
+      <section class="dashboard-grid" id="clients" style="grid-template-columns: minmax(0, 1fr);">
+        <div class="panel">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <h3 class="section-title">База клиентов</h3>
+              <p class="section-desc">Поиск, дубляж по телефону, хотели, теги и история покупок.</p>
+            </div>
+            <div class="row" style="gap:6px;">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sync_bank">
+                <button class="btn primary" type="submit">Сверка банка</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="export_clients_csv">
+                <button class="btn" type="submit">Экспорт CSV</button>
+              </form>
+            </div>
+          </div>
+          <div class="searchbar" style="margin-top: 14px;">
+            <form method="get" class="searchbar" style="grid-column: 1 / -1; margin: 0;">
+              <input name="q" placeholder="Поиск по ФИО, контакту, тегам..." value="{{ client_query }}">
+              <select name="client_status">
+                <option value="all">Все статусы</option>
+                <option value="buyer" {% if client_status == "buyer" %}selected{% endif %}>Покупатель</option>
+                <option value="lead" {% if client_status == "lead" %}selected{% endif %}>Лид</option>
+                <option value="unknown" {% if client_status == "unknown" %}selected{% endif %}>Нераспознанный</option>
+              </select>
+              <button class="btn primary" type="submit">Фильтр</button>
+            </form>
+          </div>
+          <div class="table-wrap" style="margin-top: 16px;">
+            <table class="clients-table">
+              <thead>
+                <tr>
+                  <th>Клиент</th>
+                  <th>Контакты</th>
+                  <th>Статус</th>
+                  <th>Источник</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for client in clients %}
+                  <tr style="cursor:pointer" onclick="openClientCard({{ client.id }})">
+                    <td><strong>{{ client.name }}</strong><span class="meta"> {{ client.one_c_id|default:"—" }}</span></td>
+                    <td>{{ client.phone|default:"—" }}<br>{{ client.email|default:"—" }}</td>
+                    <td><span class="chip {{ client.status|status_class }}">{{ client.status_label }}</span></td>
+                    <td>{{ client.source|default:"—" }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4">Нет клиентов.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="row" style="justify-content:center;gap:8px;margin-top:8px;">
+            {% if client_offset > 0 %}
+              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}client_offset={{ client_offset|add:'-50' }}">← Назад</a>
+            {% endif %}
+            {% if has_more_clients %}
+              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}client_offset={{ client_offset|add:'50' }}">Вперёд →</a>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Заказы</h3>
+          <p class="section-desc">Создание заказа для выбранного клиента.</p>
+          <form method="post" class="form-grid" style="margin-top: 10px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_order">
+            <input type="hidden" name="client_id" value="{{ selected_client.id|default:'' }}">
+            <div class="field">
+              <label>Клиент</label>
+              <select name="client_id_display" disabled>
+                <option value="">{{ selected_client.name|default:"Выберите клиента слева" }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Товары (строка: название, кол-во, цена, SKU)</label>
+              <textarea name="items" placeholder="Фикус Лирата, 2, 3500, FL-001&#10;Монстера, 1, 4200, MN-001" style="min-height: 80px;"></textarea>
+            </div>
+            <div class="field">
+              <label>Заметка к заказу</label>
+              <input name="notes" placeholder="Особые пожелания...">
+            </div>
+            <button class="btn primary" type="submit" {% if not selected_client %}disabled{% endif %}>Создать заказ</button>
+          </form>
+          {% if selected_client %}
+            {% with orders=selected_client.orders.all %}
+              {% if orders %}
+                <div class="divider"></div>
+                <h3 style="font-size: 16px; margin-bottom: 10px;">История заказов</h3>
+                <div class="mini-list">
+                  {% for order in orders|slice:":10" %}
+                    <div class="mini-item">
+                      <div class="head">
+                        <strong class="title">Заказ №{{ order.id }}</strong>
+                        <span class="chip good">{{ order.get_status_display }}</span>
+                      </div>
+                      <div class="meta">Сумма: {{ order.total|money }} · {{ order.created_at|dt }}</div>
+                      <div class="meta">Товаров: {{ order.items|length }}</div>
+                      <form method="post" style="margin-top: 8px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_order_status">
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <div class="row">
+                          <select name="status">
+                            <option value="new" {% if order.status == 'new' %}selected{% endif %}>Новый</option>
+                            <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>В работе</option>
+                            <option value="assembled" {% if order.status == 'assembled' %}selected{% endif %}>Собран</option>
+                            <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Отправлен</option>
+                            <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Завершён</option>
+                            <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Отменён</option>
+                          </select>
+                          <button class="btn" type="submit" style="min-height: 34px; padding: 0 14px; font-size: 13px;">Обновить статус</button>
+                        </div>
+                      </form>
+                      <div style="margin-top:6px;display:flex;gap:6px;">
+                        <button class="btn" onclick="toggleEditOrder({{ order.id }})" style="font-size:12px;padding:4px 12px;">✎ Редактировать</button>
+                        <form method="post" onsubmit="return confirm('Удалить заказ №{{ order.id }}?')" style="display:inline;">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="delete_order">
+                          <input type="hidden" name="order_id" value="{{ order.id }}">
+                          <button class="btn danger" type="submit" style="font-size:12px;padding:4px 12px;">× Удалить</button>
+                        </form>
+                      </div>
+                      <form id="edit-order-{{ order.id }}" method="post" style="margin-top:6px;display:none;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="edit_order">
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <textarea name="items" style="min-height:50px;font-size:12px;" placeholder="name, qty, price, sku">{% for item in order.items %}{{ item.name }}, {{ item.qty }}, {{ item.price }}{% if item.sku %}, {{ item.sku }}{% endif %}
+{% endfor %}</textarea>
+                        <div class="row" style="margin-top:4px;">
+                          <input name="notes" value="{{ order.notes }}" placeholder="Заметка" style="flex:1;font-size:12px;">
+                          <button class="btn" type="submit" style="font-size:12px;padding:4px 12px;">Сохранить</button>
+                        </div>
+                      </form>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
+          <div class="divider"></div>
+          <h3>Новая карточка</h3>
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_client">
+            <input type="hidden" name="client_id" value="{{ selected_client.id|default:'' }}">
+            <div class="field">
+              <label>ФИО</label>
+              <input name="name" value="{{ selected_client.name|default:'' }}" placeholder="Имя клиента" required>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Телефон</label>
+                <input name="phone" value="{{ selected_client.phone|default:'' }}" placeholder="+79990000000">
+              </div>
+              <div class="field">
+                <label>Email</label>
+                <input name="email" value="{{ selected_client.email|default:'' }}" placeholder="client@example.com">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>ID 1С</label>
+                <input name="one_c_id" value="{{ selected_client.one_c_id|default:'' }}">
+              </div>
+              <div class="field">
+                <label>Источник</label>
+                <input name="source" value="{{ selected_client.source|default:'' }}">
+              </div>
+            </div>
+            <div class="field">
+              <label>Предпочтительный канал</label>
+              <select name="preferred_channel">
+                {% for channel in channels|slice:"1:" %}
+                  <option value="{{ channel }}" {% if selected_client.preferred_channel == channel %}selected{% endif %}>{{ channel }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Теги</label>
+              <input name="tags" value="{{ selected_client.tags|join:', ' }}" placeholder="доставка, орхидеи">
+            </div>
+            <div class="field">
+              <label>Интересы</label>
+              <input name="interests" value="{{ selected_client.interests|join:', ' }}" placeholder="Комнатные растения">
+            </div>
+            <div class="field">
+              <label>Хотелки</label>
+              <input name="wish_list" value="{{ selected_client.wish_list|join:', ' }}" placeholder="Фикус Лирата, Монстера">
+            </div>
+            <div class="field">
+              <label>Внутреннее примечание</label>
+              <textarea name="internal_note">{{ selected_client.internal_note|default:'' }}</textarea>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Качество</label>
+                <select name="quality">
+                  <option value="A" {% if selected_client.quality == 'A' %}selected{% endif %}>A</option>
+                  <option value="B" {% if selected_client.quality == 'B' %}selected{% endif %}>B</option>
+                  <option value="C" {% if selected_client.quality == 'C' %}selected{% endif %}>C</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <div class="row">
+                  <label class="chip"><input type="checkbox" name="green_list" {% if selected_client.green_list %}checked{% endif %}> Зеленый список</label>
+                  <label class="chip"><input type="checkbox" name="black_list" {% if selected_client.black_list %}checked{% endif %}> Черный список</label>
+                </div>
+              </div>
+            </div>
+            <button class="btn primary" type="submit">Сохранить</button>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if page == 'tasks' %}
+      <section class="dashboard-grid" id="tasks" style="grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);">
+        <div class="panel">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <h3 class="section-title">Тикеты и приоритеты</h3>
+              <p class="section-desc">Руководство, внутренние, клиенты и системные автозадачи.</p>
+            </div>
+            <div class="row">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="generate_follow_up">
+                <button class="btn" type="submit">Follow-up</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="wishlist_trigger">
+                <button class="btn" type="submit">Лист ожидания</button>
+              </form>
+            </div>
+          </div>
+          <div class="searchbar tasks-searchbar" style="margin-top: 14px;">
+            <form method="get" class="searchbar tasks-searchbar" style="grid-column: 1 / -1; margin: 0;">
+              <input name="q" placeholder="Поиск по задачам..." value="{{ task_query }}">
+              <select name="task_filter">
+                <option value="all">Все</option>
+                <option value="new" {% if task_filter == "new" %}selected{% endif %}>Новые</option>
+                <option value="in_progress" {% if task_filter == "in_progress" %}selected{% endif %}>В работе</option>
+                <option value="waiting" {% if task_filter == "waiting" %}selected{% endif %}>Ожидание</option>
+                <option value="done" {% if task_filter == "done" %}selected{% endif %}>Готово</option>
+                <option value="overdue" {% if task_filter == "overdue" %}selected{% endif %}>Просроченные</option>
+              </select>
+              <button class="btn primary" type="submit">Фильтр</button>
+            </form>
+          </div>
+          <div class="mini-list" style="margin-top: 16px;">
+            {% for task in tasks %}
+              <div class="mini-item {% if task.due_at and task.due_at < now and task.status != 'done' %}blink{% endif %}">
+                <div class="head">
+                  <strong class="title">{{ task.title }}</strong>
+                  <span class="chip {% if task.status == 'done' %}good{% elif task.status == 'waiting' %}warn{% else %}info{% endif %}">P{{ task.priority }}</span>
+                </div>
+                <div class="meta">{{ task.origin }} · {{ task.client.name|default:"Без клиента" }} · дедлайн {{ task.due_at|dt }}</div>
+                {% if task.assigned_to %}
+                <div class="row" style="margin-top: 6px; gap: 6px;">
+                  <span class="chip info" style="font-size: 11px;">{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</span>
+                  <form method="post" style="display:inline;margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reassign_task">
+                    <input type="hidden" name="task_id" value="{{ task.id }}">
+                    <select name="assigned_to" style="font-size:11px;padding:2px 4px;width:auto;min-width:80px;" onchange="this.form.submit()">
+                      <option value="">Переназначить...</option>
+                      {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                      {% endfor %}
+                    </select>
+                  </form>
+                </div>
+                {% endif %}
+              </div>
+            {% empty %}
+              <div class="empty-state">Нет тикетов.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Новый тикет</h3>
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_task">
+            <div class="field">
+              <label>Название</label>
+              <input name="title" placeholder="Например, срочный ответ..." required>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Приоритет</label>
+                <select name="priority">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Статус</label>
+                <select name="status">
+                  <option value="new">new</option>
+                  <option value="in_progress">in_progress</option>
+                  <option value="waiting">waiting</option>
+                  <option value="done">done</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Источник</label>
+                <input name="origin" value="Внутренние">
+              </div>
+              <div class="field">
+                <label>Исполнитель</label>
+                <select name="assigned_to">
+                  {% for user in all_users %}
+                    <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Дедлайн</label>
+              <input name="due_at" type="datetime-local">
+            </div>
+            <button class="btn primary" type="submit">Создать</button>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if page == 'products' %}
+      <section class="dashboard-grid" id="products" style="grid-template-columns: 1.1fr .9fr;">
+        <div class="panel">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <h3 class="section-title">Склад и 1С</h3>
+              <p class="section-desc">Остатки, резерв, товары в производстве и автосверка.</p>
+            </div>
+            <div class="row">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sync_1c">
+                <button class="btn primary" type="submit">Импорт 1С</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sync_bank">
+                <button class="btn" type="submit">CSV банка</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="poll_avito">
+                <button class="btn" type="submit">📬 Авито</button>
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="export_products_csv">
+                <button class="btn" type="submit">Экспорт CSV</button>
+              </form>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top: 16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Товар</th>
+                  <th>Тип</th>
+                  <th>Остаток</th>
+                  <th>Резерв</th>
+                  <th>Цена</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for product in products %}
+                  <tr>
+                    <td><strong>{{ product.name }}</strong><div class="meta">{{ product.parent }} · {{ product.sku }}</div></td>
+                    <td><span class="chip info">{{ product.get_kind_display }}</span></td>
+                    <td><span class="chip {{ product.status|status_class }}">{{ product.stock }}</span></td>
+                    <td>{{ product.reserve }}</td>
+                    <td>{{ product.price|money }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5">Нет товаров.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Лист производства</h3>
+          <p class="section-desc">Товары «Ушедшего в производство».</p>
+          <div class="mini-list" style="margin-top: 12px;">
+            {% for product in in_production_products %}
+              <div class="mini-item {% if product.stock <= 2 %}blink{% endif %}">
+                <div class="head">
+                  <strong class="title">{{ product.name }}</strong>
+                  <span class="chip warn">{{ product.in_production }} шт в производстве</span>
+                </div>
+                <div class="meta">Остаток {{ product.stock }} · Резерв {{ product.reserve }} · SKU {{ product.sku }}</div>
+              </div>
+            {% empty %}
+              <div class="empty-state">Нет товаров в производстве.</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Сводка по складу</h3>
+          <div class="stack">
+            <div class="metric">
+              <div class="label">Всего товаров</div>
+              <div class="value" style="font-size: 24px;">{{ total_products }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Критический остаток</div>
+              <div class="value" style="font-size: 24px; color: var(--danger);">{{ critical_stock }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Низкий остаток</div>
+              <div class="value" style="font-size: 24px; color: var(--warn);">{{ low_stock }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if page == 'knowledge' %}
+      <section class="dashboard-grid" id="knowledge" style="grid-template-columns: 1fr .9fr .9fr;">
+        <div class="panel">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <h3 class="section-title">Обучение и база знаний</h3>
+              <p class="section-desc">Регламенты, новости и быстрый тест, который может блокировать рабочий экран.</p>
+            </div>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="quick_test_start">
+              <button class="btn primary" type="submit">Запустить тест</button>
+            </form>
+          </div>
+          <div class="mini-list" style="margin-top: 16px;">
+            {% for item in knowledge_items %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ item.title }}</strong>
+                  <span class="chip info">{{ item.role }}</span>
+                </div>
+                <div class="meta">{{ item.body }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Новости</h3>
+          <div class="mini-list">
+            {% for item in news_items %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ item.title }}</strong>
+                  <span class="chip warn">{{ item.published_at|dt }}</span>
+                </div>
+                <div class="meta">{{ item.body }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Скрипты</h3>
+          <div class="mini-list">
+            {% for script in scripts %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ script.trigger }}</strong>
+                  <span class="chip good">Автоответ</span>
+                </div>
+                <div class="meta">{{ script.answer }}</div>
+              </div>
+            {% endfor %}
+          </div>
+          {% if quick_test_question %}
+            <div class="ghost-box" style="margin-top: 12px;">
+              <strong>Тест активен</strong>
+              <p style="margin: 6px 0 0; font-size: 13px; color: var(--ink-muted);">Экран заблокирован — ответьте на вопрос в модальном окне.</p>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if page == 'analytics' %}
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+      <section class="dashboard-grid" id="analytics" style="grid-template-columns: 1.2fr .9fr;">
+        <div class="panel">
+          <h3 class="section-title">Аналитика</h3>
+          <p class="section-desc">KPI, динамика продаж и эффективность каналов.</p>
+          <div class="grid-cards" style="margin-top: 16px;">
+            <div class="metric">
+              <div class="label">Всего клиентов</div>
+              <div class="value" style="font-size: 24px;">{{ total_clients }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Покупатели</div>
+              <div class="value" style="font-size: 24px;">{{ buyers_count }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Лиды</div>
+              <div class="value" style="font-size: 24px;">{{ leads_count }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Нераспознанные</div>
+              <div class="value" style="font-size: 24px;">{{ unknown_count }}</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div>
+            <h3>Выручка по периодам</h3>
+            <canvas id="revenueChart" height="200"></canvas>
+          </div>
+          <div class="divider"></div>
+          <h3>KPI сотрудников</h3>
+          <div class="table-wrap" style="margin-top: 12px; overflow-x: auto;">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Сотрудник</th>
+                  <th>Роль</th>
+                  <th>Сообщений</th>
+                  <th>Задач</th>
+                  <th>Выполнено</th>
+                  <th>Конверсия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for kpi in employee_kpi %}
+                  <tr>
+                    <td>{{ kpi.name }}</td>
+                    <td><span class="chip info">{{ kpi.role }}</span></td>
+                    <td>{{ kpi.messages }}</td>
+                    <td>{{ kpi.tasks }}</td>
+                    <td>{{ kpi.done }}</td>
+                    <td><span class="chip {% if kpi.conversion > 50 %}good{% else %}warn{% endif %}">{{ kpi.conversion }}%</span></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6">Нет данных.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Выручка</h3>
+          <p class="section-desc">Покупки (1С + банк) + заказы.</p>
+          <div style="display:flex;gap:14px;margin-bottom:10px;">
+            <div class="metric"><div class="label">Заказов всего</div><div class="value" style="font-size:20px;">{{ order_count }}</div></div>
+            <div class="metric"><div class="label">Сумма заказов</div><div class="value" style="font-size:20px;">{{ order_revenue|money }}</div></div>
+          </div>
+          <div class="stack" style="margin-top: 14px;">
+            <div class="revenue-period">
+              <span class="chip good">Сегодня</span>
+              <span class="revenue-amount">{{ revenue_today|money }}</span>
+            </div>
+            <div class="revenue-period">
+              <span class="chip info">Неделя</span>
+              <span class="revenue-amount">{{ revenue_week|money }}</span>
+            </div>
+            <div class="revenue-period">
+              <span class="chip warn">Месяц</span>
+              <span class="revenue-amount">{{ revenue_month|money }}</span>
+            </div>
+            <div class="revenue-period">
+              <span class="chip">6 месяцев</span>
+              <span class="revenue-amount">{{ revenue_6months|money }}</span>
+            </div>
+            <div class="revenue-period">
+              <span class="chip" style="background: var(--surface-dark); color: #fff;">Всё время</span>
+              <span class="revenue-amount" style="font-size: 24px; font-weight: 700;">{{ revenue_total|money }}</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <h3>Динамика тикетов</h3>
+          <canvas id="tasksChart" height="140"></canvas>
+          <div class="divider"></div>
+          <h3>Динамика остатков</h3>
+          <div class="stack" style="margin-top: 10px;">
+            <div class="metric">
+              <div class="label">Критический остаток</div>
+              <div class="value" style="font-size: 22px; color: var(--danger);">{{ critical_stock }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Низкий остаток</div>
+              <div class="value" style="font-size: 22px; color: var(--warn);">{{ low_stock }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <script>
+      const chartColors = { grid: 'rgba(0,0,0,0.06)', text: '#6e6e73' };
+      new Chart(document.getElementById('revenueChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Сегодня', 'Неделя', 'Месяц', '6 мес', 'Всё время'],
+          datasets: [{
+            label: 'Выручка',
+            data: [{{ revenue_today|floatformat:"0" }}, {{ revenue_week|floatformat:"0" }}, {{ revenue_month|floatformat:"0" }}, {{ revenue_6months|floatformat:"0" }}, {{ revenue_total|floatformat:"0" }}],
+            backgroundColor: ['rgba(196,40,47,0.7)', 'rgba(196,40,47,0.55)', 'rgba(196,40,47,0.4)', 'rgba(196,40,47,0.25)', 'rgba(196,40,47,0.12)'],
+            borderColor: '#C4282F',
+            borderWidth: 1
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { color: chartColors.text } }, x: { grid: { display: false }, ticks: { color: chartColors.text } } } }
+      });
+
+      new Chart(document.getElementById('tasksChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Новые', 'В работе', 'Ожидание', 'Готово'],
+          datasets: [{
+            data: [
+              {{ task_status_new }},
+              {{ task_status_in_progress }},
+              {{ task_status_waiting }},
+              {{ task_status_done }}
+            ],
+            backgroundColor: ['rgba(196,40,47,0.7)', 'rgba(228,216,151,0.5)', 'rgba(228,216,151,0.25)', 'rgba(59,165,93,0.6)'],
+            borderWidth: 0
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: chartColors.text } } } }
+      });
+      </script>
+      {% endif %}
+      {% if 'admin' in sections %}
+      {% if page == 'admin' %}
+      <section class="dashboard-grid" id="admin" style="grid-template-columns: 1fr 1fr;">
+        <div class="panel">
+          <h3 class="section-title">Панель администратора</h3>
+          <p class="section-desc">Пользователи, словари, Режим Бога, файлы и антифрод.</p>
+          <div class="subgrid">
+            <div>
+              <div class="row" style="justify-content: space-between;">
+                <h3 style="font-size: 16px;">Пользователи</h3>
+                <form method="post" class="row" style="margin:0;gap:4px;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="create_user">
+                  <input name="username" placeholder="Логин" required style="width:110px;font-size:12px;padding:4px 8px;">
+                  <input name="password" placeholder="Пароль" style="width:80px;font-size:12px;padding:4px 8px;" value="temp123">
+                  <select name="role" style="width:80px;font-size:12px;padding:4px 4px;">
+                    <option value="front">Фронт</option>
+                    <option value="hybrid">Гибрид</option>
+                    <option value="back">Бек</option>
+                    <option value="content">Контент</option>
+                    <option value="locomotive">Локомотив</option>
+                    <option value="admin">Админ</option>
+                  </select>
+                  <button class="btn primary" type="submit" style="font-size:12px;padding:4px 10px;">+</button>
+                </form>
+              </div>
+              <div class="mini-list">
+                {% for user in all_users %}
+                  <div class="mini-item">
+                    <div class="head">
+                      <strong class="title">{{ user.username }}</strong>
+                      <span class="chip {% if user.is_active %}good{% else %}danger{% endif %}">{{ user.profile.get_role_display|default:"Пользователь" }}</span>
+                    </div>
+                    <form method="post" class="form-grid" style="margin-top: 8px;">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="update_user">
+                      <input type="hidden" name="user_id" value="{{ user.id }}">
+                      <div class="grid-2">
+                        <div class="field">
+                          <label>Имя</label>
+                          <input name="first_name" value="{{ user.first_name|default:'' }}" placeholder="Имя">
+                        </div>
+                        <div class="field">
+                          <label>Фамилия</label>
+                          <input name="last_name" value="{{ user.last_name|default:'' }}" placeholder="Фамилия">
+                        </div>
+                      </div>
+                      <div class="grid-2">
+                        <div class="field">
+                          <label>Email</label>
+                          <input name="email" value="{{ user.email|default:'' }}" placeholder="email@plants.local">
+                        </div>
+                        <div class="field">
+                          <label>Роль</label>
+                          <select name="role">
+                            <option value="front" {% if user.profile.role == 'front' %}selected{% endif %}>Фронт</option>
+                            <option value="back" {% if user.profile.role == 'back' %}selected{% endif %}>Бек</option>
+                            <option value="hybrid" {% if user.profile.role == 'hybrid' %}selected{% endif %}>Гибрид</option>
+                            <option value="content" {% if user.profile.role == 'content' %}selected{% endif %}>Контент</option>
+                            <option value="locomotive" {% if user.profile.role == 'locomotive' %}selected{% endif %}>Локомотив</option>
+                            <option value="admin" {% if user.profile.role == 'admin' %}selected{% endif %}>Администратор</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="grid-2">
+                        <div class="field">
+                          <label>График</label>
+                          <input name="schedule" value="{{ user.profile.schedule|default:'09:00-18:00' }}">
+                        </div>
+                        <div class="field">
+                          <label>Новый пароль (пусто — не менять)</label>
+                          <input name="password" type="password" placeholder="••••••••">
+                        </div>
+                      </div>
+                      <div class="row">
+                        <button class="btn primary" type="submit">Сохранить</button>
+                        <label class="chip"><input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}> Активен</label>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Удалить пользователя {{ user.username }}?')">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="delete_user">
+                          <input type="hidden" name="user_id" value="{{ user.id }}">
+                          <button class="btn danger" type="submit">× Удалить</button>
+                        </form>
+                      </div>
+                    </form>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="subgrid">
+            <div>
+              <h3>Словари</h3>
+              <p class="section-desc">Теги, статусы, интересы — управление.</p>
+              <form method="post" class="form-grid" style="margin-top: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dict_add">
+                <div class="grid-2">
+                  <div class="field">
+                    <label>Тип</label>
+                    <select name="dict_type">
+                      <option value="tag">Тег</option>
+                      <option value="status">Статус</option>
+                      <option value="interest">Интерес</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Ключ</label>
+                    <input name="key" placeholder="Ключ" required>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Название</label>
+                  <input name="label" placeholder="Название для отображения">
+                </div>
+                <button class="btn primary" type="submit">Добавить</button>
+              </form>
+              <div class="pill-row" style="margin-top: 12px;">
+                {% for entry in dict_tags %}
+                  <span class="chip info">{{ entry.label }} <form method="post" style="display: inline; margin: 0;">{% csrf_token %}<input type="hidden" name="action" value="dict_delete"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" style="background: none; border: none; cursor: pointer; padding: 0; margin-left: 4px; color: var(--danger); font-size: 12px;">x</button></form></span>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div>
+              <h3>Загрузка файлов</h3>
+              <p class="section-desc">Файлы загружаются в Yandex Object Storage (S3).</p>
+              <form method="post" class="form-grid" style="margin-top: 10px;" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_file">
+                <div class="field">
+                  <label>Файл</label>
+                  <input type="file" name="file">
+                </div>
+                <div class="field">
+                  <label>Тег (товар или заказ)</label>
+                  <input name="tag" placeholder="Фикус Лирата / Заказ №42">
+                </div>
+                <button class="btn primary" type="submit">Загрузить</button>
+              </form>
+              {% if uploaded_files %}
+                <div class="mini-list" style="margin-top: 12px;">
+                  {% for f in uploaded_files %}
+                    <div class="mini-item">
+                      <div class="head">
+                        {% if f.s3_url %}
+                          <a href="{{ f.s3_url }}" target="_blank" class="title">{{ f.original_name }}</a>
+                        {% else %}
+                          <strong class="title">{{ f.original_name }}</strong>
+                        {% endif %}
+                        <span class="chip info">{{ f.tag }}</span>
+                      </div>
+                      <div class="meta">{{ f.file_size|filesizeformat }} · {{ f.uploaded_at|dt }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>CSV импорт пользователей</h3>
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import_csv">
+            <div class="field">
+              <textarea name="csv_data">login,name,role,email,active
+new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
+            </div>
+            <button class="btn primary" type="submit">Импортировать</button>
+          </form>
+          <div class="divider"></div>
+          <h3>Аудит действий</h3>
+          <div class="mini-list">
+            {% for item in audit_items %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ item.action }}</strong>
+                  <span class="chip info">{{ item.created_at|dt }}</span>
+                </div>
+                <div class="meta">{{ item.actor }} · {{ item.ip_address }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Режим Бога</h3>
+          <p class="section-desc">Все переписки всех сотрудников.</p>
+          <div class="mini-list" style="margin-top: 12px;">
+            {% for msg in god_mode_messages %}
+              <a class="mini-item" href="{% url 'crm:dashboard' %}?page=inbox&client={% if msg.client %}{{ msg.client.id }}{% endif %}" style="display: block; text-decoration: none;">
+                <div class="head">
+                  <strong class="title">{{ msg.author_name }} · {{ msg.channel }}</strong>
+                  <span class="chip {{ msg.direction|status_class }}">{{ msg.get_direction_display }}</span>
+                </div>
+                <div class="meta">{{ msg.text|truncatechars:120 }}</div>
+                <div class="meta" style="font-size: 11px;">{{ msg.created_at|dt }} · назначено: {{ msg.assigned_to.get_full_name|default:msg.assigned_to.username|default:"—" }}</div>
+              </a>
+            {% empty %}
+              <div class="empty-state">Нет сообщений.</div>
+            {% endfor %}
+          </div>
+          <div class="divider"></div>
+          <h3>Антифрод события</h3>
+          <div class="mini-list">
+            {% for event in fraud_events %}
+              <div class="mini-item {% if event.blocked %}blink{% endif %}">
+                <div class="head">
+                  <strong class="title">{{ event.employee.get_full_name|default:event.employee.username }}</strong>
+                  <span class="chip {% if event.blocked %}danger{% else %}info{% endif %}">{{ event.action }}</span>
+                </div>
+                <div class="meta">{{ event.detail }} · {{ event.ip_address }} · {{ event.created_at|dt }}</div>
+              </div>
+            {% empty %}
+              <div class="empty-state">Событий нет.</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1;">
+          <h3>Скрипты автоматических ответов</h3>
+          <p class="section-desc">Триггер-ответ для быстрых шаблонов в едином окне.</p>
+          <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+            <div>
+              <strong style="font-size: 14px; display: block; margin-bottom: 10px;">Существующие скрипты</strong>
+              <div class="mini-list">
+                {% for script in db_scripts %}
+                  <div class="mini-item">
+                    <div class="head">
+                      <strong class="title">{{ script.trigger }}</strong>
+                      <span class="chip good">Автоответ</span>
+                    </div>
+                    <div class="meta">{{ script.answer|truncatechars:100 }}</div>
+                    <div class="row" style="margin-top: 8px;">
+                      <button class="btn ghost" type="button" onclick="editScript({{ script.id }},'{{ script.trigger|addslashes }}','{{ script.answer|addslashes }}')" style="min-height: 30px; padding: 0 12px; font-size: 12px;">✏️</button>
+                      <form method="post" style="margin: 0;" onsubmit="return confirm('Удалить скрипт?')">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_script">
+                        <input type="hidden" name="script_id" value="{{ script.id }}">
+                        <button class="btn danger" type="submit" style="min-height: 30px; padding: 0 12px; font-size: 12px;">Удалить</button>
+                      </form>
+                    </div>
+                  </div>
+                {% empty %}
+                  <div class="empty-state">Скриптов нет. Добавьте первый ниже.</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div>
+              <strong style="font-size: 14px; display: block; margin-bottom: 10px;">Добавить / редактировать</strong>
+              <form method="post" class="form-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_script">
+                <input type="hidden" name="script_id" id="script-id" value="">
+                <div class="field">
+                  <label>Триггер (ключевое слово)</label>
+                  <input name="trigger" id="script-trigger" placeholder="Например: нет в наличии" required>
+                </div>
+                <div class="field">
+                  <label>Ответ</label>
+                  <textarea name="answer" id="script-answer" placeholder="Текст ответа..." required style="min-height: 80px;"></textarea>
+                </div>
+                <button class="btn primary" type="submit">Сохранить скрипт</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1;">
+          <h3>База знаний</h3>
+          <p class="section-desc">Управление статьями: добавление, редактирование, удаление.</p>
+          <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+            <div>
+              <strong style="font-size: 14px; display: block; margin-bottom: 10px;">Существующие статьи</strong>
+              <div class="mini-list">
+                {% for article in knowledge_items %}
+                  <div class="mini-item">
+                    <div class="head">
+                      <strong class="title">{{ article.title }}</strong>
+                      <span class="chip info">{{ article.role }}</span>
+                    </div>
+                    <div class="meta">{{ article.body|truncatechars:100 }}</div>
+                    <div class="row" style="margin-top: 8px;">
+                      <button class="btn ghost" type="button" onclick='editArticle({{ article.id|safe }},"{{ article.title|addslashes }}","{{ article.role|addslashes }}")' data-body="{{ article.body|addslashes }}" style="min-height: 30px; padding: 0 12px; font-size: 12px;">✏️</button>
+                      <form method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_article">
+                        <input type="hidden" name="article_id" value="{{ article.id }}">
+                        <button class="btn danger" type="submit" style="min-height: 30px; padding: 0 12px; font-size: 12px;">Удалить</button>
+                      </form>
+                    </div>
+                  </div>
+                {% empty %}
+                  <div class="empty-state">Статей нет.</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div>
+              <strong style="font-size: 14px; display: block; margin-bottom: 10px;">Добавить / редактировать</strong>
+              <form method="post" class="form-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_article">
+                <input type="hidden" name="article_id" value="{{ selected_article_id|default:'' }}">
+                <div class="field">
+                  <label>Название</label>
+                  <input name="article_title" placeholder="Название статьи" required>
+                </div>
+                <div class="field">
+                  <label>Роль</label>
+                  <select name="article_role">
+                    <option value="front">Фронт</option>
+                    <option value="back">Бек</option>
+                    <option value="hybrid">Гибрид</option>
+                    <option value="content">Контент</option>
+                    <option value="locomotive">Локомотив</option>
+                    <option value="admin">Администратор</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Текст статьи</label>
+                  <textarea name="article_body" placeholder="Полный текст статьи, регламента или скрипта..." required style="min-height: 120px;"></textarea>
+                </div>
+                <button class="btn primary" type="submit">Сохранить статью</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+      {% endif %}
+    </section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="client-modal" style="display: none;" onclick="closeClientModal(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-height: 90vh; overflow-y: auto;">
+    <div class="row" style="justify-content: space-between;">
+      <h3 id="modal-name">Клиент</h3>
+      <button class="btn ghost" onclick="closeClientModal()" style="min-height: 32px; padding: 0 12px;">×</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+function openClientCard(clientId) {
+  fetch('/client/' + clientId + '/json/')
+    .then(r => r.json())
+    .then(d => {
+      const modal = document.getElementById('client-modal');
+      document.getElementById('modal-name').textContent = d.name;
+      const statusChip = d.status_class ? 'chip ' + d.status_class : 'chip info';
+      let html = '<div class="row" style="gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">';
+      html += '<span class="' + statusChip + '">' + d.status_label + '</span>';
+      if (d.source) html += '<span class="chip info">' + d.source + '</span>';
+      if (d.quality) html += '<span class="chip warn">' + d.quality + '</span>';
+      if (d.green_list) html += '<span class="chip good">Зелёный список</span>';
+      if (d.black_list) html += '<span class="chip danger">Чёрный список</span>';
+      html += '</div>';
+      html += '<div class="grid-2" style="margin-bottom: 14px;">';
+      html += '<div><strong>Телефон</strong><br>' + (d.phone || '—') + '</div>';
+      html += '<div><strong>Email</strong><br>' + (d.email || '—') + '</div>';
+      html += '</div>';
+      if (d.tags && d.tags.length) {
+        html += '<div class="pill-row" style="margin-bottom: 14px;">';
+        d.tags.forEach(function(t) { html += '<span class="chip info">' + t + '</span>'; });
+        html += '</div>';
+      }
+      if (d.interests && d.interests.length) {
+        html += '<div><strong>Интересы:</strong> ' + d.interests.join(', ') + '</div>';
+      }
+      if (d.wish_list && d.wish_list.length) {
+        html += '<div><strong>Хотелки:</strong> ' + d.wish_list.join(', ') + '</div>';
+      }
+      if (d.internal_note) {
+        html += '<div class="ghost-box" style="margin: 14px 0;">' + d.internal_note + '</div>';
+      }
+      if (d.messages && d.messages.length) {
+        html += '<div class="divider"></div><h3 style="font-size: 16px;">Сообщения</h3>';
+        d.messages.forEach(function(m) {
+          html += '<div class="mini-item" style="margin-bottom: 8px;"><div class="head"><strong>' + m.author + '</strong> <span class="chip ' + (m.direction === 'Входящее' ? 'info' : 'warn') + '">' + m.direction + '</span></div><div class="meta">' + m.text + '</div><div class="meta" style="font-size: 11px;">' + m.created_at + '</div></div>';
+        });
+      }
+      if (d.tasks && d.tasks.length) {
+        html += '<div class="divider"></div><h3 style="font-size: 16px;">Задачи</h3>';
+        d.tasks.forEach(function(t) {
+          html += '<div class="mini-item" style="margin-bottom: 8px;"><div class="head"><strong>' + t.title + '</strong> <span class="chip info">P' + t.priority + '</span></div><div class="meta">' + t.status + ' · ' + t.due_at + '</div></div>';
+        });
+      }
+      if (d.orders && d.orders.length) {
+        html += '<div class="divider"></div><h3 style="font-size: 16px;">Заказы</h3>';
+        d.orders.forEach(function(o) {
+          html += '<div class="mini-item" style="margin-bottom: 8px;"><div class="head"><strong>Заказ №' + o.id + '</strong> <span class="chip good">' + o.status + '</span></div><div class="meta">Сумма: ' + o.total + ' ₽</div><div class="meta" style="font-size: 11px;">' + o.created_at + '</div></div>';
+        });
+      }
+      if (d.history && d.history.length) {
+        html += '<div class="divider"></div><h3 style="font-size: 16px;">История</h3>';
+        d.history.slice().reverse().forEach(function(h) {
+          html += '<div class="mini-item" style="margin-bottom: 6px;"><div class="head"><span class="chip info">' + h.type + '</span></div><div class="meta">' + h.text + ' · ' + h.at + '</div></div>';
+        });
+      }
+      document.getElementById('modal-body').innerHTML = html;
+      modal.style.display = 'grid';
+    });
+}
+function toggleBell(e) {
+  e.stopPropagation();
+  var drop = document.getElementById('bell-drop');
+  drop.classList.toggle('visible');
+}
+document.addEventListener('click', function(e) {
+  var drop = document.getElementById('bell-drop');
+  if (drop && drop.classList.contains('visible') && !e.target.closest('.bell-wrap')) {
+    drop.classList.remove('visible');
+  }
+});
+function closeClientModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('client-modal').style.display = 'none';
+}
+function editArticle(id, title, role) {
+  var btn = event.target;
+  var body = btn.getAttribute('data-body');
+  document.querySelector('[name="article_id"]').value = id;
+  document.querySelector('[name="article_title"]').value = title;
+  document.querySelector('[name="article_body"]').value = body;
+  var roleSelect = document.querySelector('[name="article_role"]');
+  for (var i = 0; i < roleSelect.options.length; i++) {
+    if (roleSelect.options[i].value === role) {
+      roleSelect.options[i].selected = true;
+      break;
+    }
+  }
+  window.scrollTo({ top: document.querySelector('[name="article_title"]').offsetTop - 100, behavior: 'smooth' });
+}
+function toggleEditOrder(id) {
+  var form = document.getElementById('edit-order-' + id);
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+function editScript(id, trigger, answer) {
+  document.getElementById('script-id').value = id;
+  document.getElementById('script-trigger').value = trigger;
+  document.getElementById('script-answer').value = answer;
+  window.scrollTo({ top: document.getElementById('script-trigger').offsetTop - 100, behavior: 'smooth' });
+}
+</script>
+{% endblock %}
