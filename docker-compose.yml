@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: plant_crm
+      POSTGRES_USER: plant_crm
+      POSTGRES_PASSWORD: plant_crm
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plant_crm -d plant_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: ./
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost:8000,http://127.0.0.1:8000"
+      POSTGRES_DB: plant_crm
+      POSTGRES_USER: plant_crm
+      POSTGRES_PASSWORD: plant_crm
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
