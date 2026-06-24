@@ -1,7 +1,7 @@
 :root {
-  --primary: #722F37;
-  --primary-focus: #8B3A3A;
-  --primary-on-dark: #A04545;
+  --primary: #2D8A4E;
+  --primary-focus: #236B3E;
+  --primary-on-dark: #35A05E;
   --ink: #1D1D1F;
   --ink-muted: #6E6E73;
   --ink-soft: #86868B;
@@ -9,7 +9,7 @@
   --parchment: #EBE5D6;
   --surface: #FFFFFF;
   --surface-dark: #004524;
-  --gold: #8B3A3A;
+  --gold: #2D8A4E;
   --green: #3BA55D;
   --hairline: rgba(0, 0, 0, 0.08);
   --divider: rgba(0, 0, 0, 0.05);
@@ -330,8 +330,8 @@ button { border: 0; cursor: pointer; }
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-  border-color: rgba(114, 47, 55, 0.4);
-  box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.08);
+  border-color: rgba(45, 138, 78, 0.4);
+  box-shadow: 0 0 0 3px rgba(45, 138, 78, 0.08);
 }
 
 .grid-2 {
@@ -381,7 +381,7 @@ button { border: 0; cursor: pointer; }
   border-color: transparent;
 }
 
-.btn.primary:hover { background: var(--primary-focus); box-shadow: 0 4px 16px rgba(114, 47, 55, 0.25); }
+.btn.primary:hover { background: var(--primary-focus); box-shadow: 0 4px 16px rgba(45, 138, 78, 0.25); }
 
 .btn.danger {
   color: var(--danger);
@@ -461,8 +461,8 @@ button { border: 0; cursor: pointer; }
 .nav button:hover,
 .nav a.active,
 .nav a:hover {
-  background: rgba(114, 47, 55, 0.2);
-  border-color: rgba(114, 47, 55, 0.25);
+  background: rgba(45, 138, 78, 0.2);
+  border-color: rgba(45, 138, 78, 0.25);
   color: #fff;
 }
 
@@ -671,7 +671,7 @@ th {
   letter-spacing: 0.12em;
 }
 
-tr:hover td { background: rgba(196, 40, 47, 0.04); }
+tr:hover td { background: rgba(45, 138, 78, 0.04); }
 
 .chip {
   display: inline-flex;
@@ -705,8 +705,8 @@ tr:hover td { background: rgba(196, 40, 47, 0.04); }
 
 .chip.info {
   color: var(--primary);
-  border-color: rgba(114, 47, 55, 0.2);
-  background: rgba(114, 47, 55, 0.06);
+  border-color: rgba(45, 138, 78, 0.2);
+  background: rgba(45, 138, 78, 0.06);
 }
 
 .subgrid { display: grid; gap: 14px; }
