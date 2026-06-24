@@ -13,3 +13,9 @@ venv/
 db.sqlite3
 .pgdata/
 
+
+# ТЗ и дизайн-макеты
+*.docx
+*.xlsx
+apple/
+apple-*.png
