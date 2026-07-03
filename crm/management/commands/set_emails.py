@@ -18,6 +18,10 @@ class Command(BaseCommand):
             if user:
                 user.email = email
                 user.save(update_fields=['email'])
+                profile = EmployeeProfile.objects.filter(user=user).first()
+                if profile:
+                    profile.work_email = email
+                    profile.save(update_fields=['work_email'])
                 self.stdout.write(self.style.SUCCESS(f'{username}: email → {email}'))
             else:
                 self.stdout.write(self.style.WARNING(f'{username}: not found'))

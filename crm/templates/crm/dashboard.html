@@ -1,6 +1,7 @@
 {% extends "crm/base.html" %}
 {% load crm_tags %}
-{% block title %}Панель · PlantFlow CRM{% endblock %}
+{% load static %}
+{% block title %}Панель · LSG CRM{% endblock %}
 {% block content %}
 {% if quick_test_question %}
 <div class="screen-lock-overlay" id="screen-lock">
@@ -32,7 +33,10 @@
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand">
-      <p class="name">🌿 PlantFlow</p>
+      <div class="brand-head">
+        <img class="brand-logo" src="{% static 'crm/lsg-logo.png' %}" alt="LSG Secret Garden" width="200" height="99">
+        <p class="name">LSG CRM</p>
+      </div>
       <p class="meta">{{ request.user.get_full_name|default:request.user.username }} · {{ current_user_profile.get_role_display|default:"Пользователь" }}</p>
     </div>
     <nav class="nav">
@@ -61,14 +65,14 @@
   <main class="content">
     <header class="topbar">
       <div>
-        <h1>Дашборд</h1>
+        <h1>{{ page_label }}</h1>
         <p class="sub">Приоритеты, статусы, события и быстрые действия.</p>
       </div>
       <div class="topbar-actions">
         <div class="bell-wrap">
           <button class="btn ghost bell-btn" onclick="toggleBell(event)" id="bell-btn">
             🔔
-            {% with total_notifications=active_chats|add:overdue_count|add:leads_count %}
+            {% with total_notifications=unanswered_total|add:overdue_count %}
             {% if total_notifications > 0 %}
               <span class="bell-badge">{{ total_notifications }}</span>
             {% endif %}
@@ -76,11 +80,11 @@
           </button>
           <div class="bell-drop" id="bell-drop">
             <strong style="display: block; margin-bottom: 10px;">Уведомления</strong>
-            <div class="bell-item {% if active_chats == 0 %}muted{% endif %}">
-              <span class="chip info">📩 {{ active_chats }}</span> непрочитанных сообщений
+            <div class="bell-item {% if unanswered_total == 0 %}muted{% endif %}">
+              <span class="chip info">📩 {{ unanswered_total }}</span> неотвеченных за период
             </div>
             <div class="bell-item {% if overdue_count == 0 %}muted{% endif %}">
-              <span class="chip danger">⚠️ {{ overdue_count }}</span> просроченных тикетов
+              <span class="chip danger">⚠️ {{ overdue_count }}</span> просроченных рабочих часов
             </div>
             <div class="bell-item {% if leads_count == 0 %}muted{% endif %}">
               <span class="chip warn">🆕 {{ leads_count }}</span> новых лидов
@@ -97,44 +101,92 @@
     </header>
 
     <section class="layout">
-      <div class="hero-banner" id="overview">
-        <div>
-          <p class="title">Добро пожаловать, {{ request.user.get_full_name|default:request.user.username }}</p>
-          <p>CRM уже связана с PostgreSQL и Django. Ниже - клиенты, сообщения, задачи, товары, знания и аналитика.</p>
-        </div>
-        <div class="pill-row">
-          <span class="chip good">Физ. вход: {{ now|dt }}</span>
-          <span class="chip info">{{ request.META.REMOTE_ADDR|default:"127.0.0.1" }}</span>
-        </div>
-      </div>
-
-      <div class="grid-cards">
-        <div class="metric">
-          <div class="label">Новые лиды</div>
-          <div class="value">{{ leads_count }}</div>
-          <div class="delta">+4 за 7 дней</div>
-        </div>
-        <div class="metric">
-          <div class="label">Активные чаты</div>
-          <div class="value">{{ active_chats }}</div>
-          <div class="delta">Входящие требуют ответа</div>
-        </div>
-        <div class="metric">
-          <div class="label">Просрочено</div>
-          <div class="value">{{ overdue_count }}</div>
-          <div class="delta">Проверить дедлайны</div>
-        </div>
-        <div class="metric">
-          <div class="label">Выручка</div>
-          <div class="value">{{ revenue_total|money }}</div>
-          <div class="delta">По покупкам из базы</div>
-        </div>
-      </div>
-
       {% if page == 'dashboard' %}
+      <div id="overview"></div>
       <section class="panel">
-        <h3 class="section-title">Выберите раздел</h3>
-        <p class="section-desc">Откройте нужный рабочий блок слева в меню.</p>
+        <div class="row" style="justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h3 class="section-title">Показатели за период</h3>
+            <p class="section-desc">Клиентская база и актуальные неотвеченные обращения по каналам.</p>
+          </div>
+          <form method="get" class="row" style="gap: 8px; align-items: flex-end; margin: 0; flex-wrap: wrap;">
+            <input type="hidden" name="page" value="dashboard">
+            <div class="field" style="margin: 0;">
+              <label style="font-size: 12px;">Период c</label>
+              <input type="date" name="dash_start" value="{{ dash_start }}">
+            </div>
+            <div class="field" style="margin: 0;">
+              <label style="font-size: 12px;">по</label>
+              <input type="date" name="dash_end" value="{{ dash_end }}">
+            </div>
+            <button class="btn primary" type="submit">Показать</button>
+          </form>
+        </div>
+        <div class="grid-cards" style="margin-top: 16px;">
+          <div class="metric">
+            <div class="label">Клиентов в базе</div>
+            <div class="value">{{ total_clients }}</div>
+            <div class="delta">Покупателей: {{ buyers_count }}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Лидов</div>
+            <div class="value">{{ leads_count }}</div>
+            <div class="delta">Есть контакт, нет покупок</div>
+          </div>
+          <div class="metric">
+            <div class="label">Нераспознанных</div>
+            <div class="value">{{ unknown_count }}</div>
+            <div class="delta">Новый контакт без данных</div>
+          </div>
+          <div class="metric">
+            <div class="label">Просрочено (часов)</div>
+            <div class="value" {% if overdue_count %}style="color: var(--danger);"{% endif %}>{{ overdue_count }}</div>
+            <div class="delta">Рабочих часов без ответа сегодня</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="dashboard-grid" style="grid-template-columns: 1.3fr .7fr;">
+        <section class="panel">
+          <div class="row" style="justify-content: space-between; align-items: center;">
+            <h3 class="section-title">Неотвеченные по каналам</h3>
+            <span class="chip {% if unanswered_total %}danger{% else %}good{% endif %}">Всего: {{ unanswered_total }}</span>
+          </div>
+          <p class="section-desc">Входящие без ответа за выбранный период. Нажмите канал, чтобы перейти в единое окно.</p>
+          <div class="grid-cards" style="margin-top: 14px;">
+            {% for row in unanswered_by_channel %}
+              <a class="metric" href="{% url 'crm:dashboard' %}?page=inbox&channel={{ row.channel|urlencode }}#inbox" style="text-decoration: none;">
+                <div class="label">{{ row.channel|default:"Без канала" }}</div>
+                <div class="value" style="font-size: 26px;">{{ row.count }}</div>
+                <div class="delta">не отвечено</div>
+              </a>
+            {% empty %}
+              <div class="empty-state">Все обращения за период отвечены 🎉</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3 class="section-title">Сотрудники в сети</h3>
+          <p class="section-desc">Открытые смены (учёт времени).</p>
+          <div class="mini-list" style="margin-top: 12px;">
+            {% for row in shift_summary %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ row.name }}</strong>
+                  <span class="chip good">в сети</span>
+                </div>
+                <div class="meta">С {{ row.since|dt }} · {{ row.hours }} ч {{ row.minutes }} мин</div>
+              </div>
+            {% empty %}
+              <div class="empty-state">Сейчас никто не в смене.</div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h3 class="section-title">Быстрый переход</h3>
         <div class="pill-row" style="margin-top: 14px;">
           <a class="btn" href="{% url 'crm:dashboard' %}?page=inbox#inbox">Единое окно</a>
           <a class="btn" href="{% url 'crm:dashboard' %}?page=clients#clients">Клиенты</a>
@@ -153,11 +205,18 @@
             <h3 class="section-title">Единое окно</h3>
             <p class="section-desc">Telegram, VK, WhatsApp, Email, сайт, Flowwow и Авито в одном списке.</p>
           </div>
-          <form method="post" style="margin: 0;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="simulate_incoming">
-            <button class="btn" type="submit">Смоделировать входящее</button>
-          </form>
+          <div class="row" style="gap: 8px; flex-wrap: wrap;">
+            <form method="post" style="margin: 0;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="poll_manual_messages">
+              <button class="btn primary" type="submit">Забрать сообщения</button>
+            </form>
+            <form method="post" style="margin: 0;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="simulate_incoming">
+              <button class="btn" type="submit">Смоделировать входящее</button>
+            </form>
+          </div>
         </div>
         <div class="searchbar" style="margin-top: 14px;">
           <form method="get" class="searchbar" style="grid-column: 1 / -1; margin: 0;">
@@ -173,17 +232,35 @@
         <div class="dashboard-grid" style="margin-top: 16px; grid-template-columns: 1.2fr .8fr .7fr;">
           <div class="panel">
             <h3>Лента сообщений</h3>
+            <p class="section-desc">Хронология обращений. Клик по имени — карточка клиента.</p>
             <div class="mini-list">
               {% for message in inbox_messages %}
-                <div class="mini-item">
+                <div class="mini-item {% if message.reply_state == 'overdue' %}blink{% endif %}">
                   <div class="head">
-                    <strong class="title">{{ message.author_name }} · {{ message.channel }}</strong>
-                    <span class="chip {{ message.direction|status_class }}">{{ message.get_direction_display }}</span>
+                    <span class="chip info" style="font-size:11px;">{{ message.created_at|dt }}</span>
+                    <span class="chip {% if message.channel == 'VK' %}info{% elif message.channel == 'Telegram' %}good{% elif message.channel == 'Авито' %}warn{% else %}info{% endif %}">{{ message.channel }}</span>
                   </div>
-                  <div class="meta">{{ message.text }}</div>
+                  <div class="head" style="margin-top:6px;">
+                    {% if message.client %}
+                      <a class="title" href="#" onclick="openClientCard({{ message.client.id }}); return false;" style="cursor:pointer; text-decoration:underline;">{{ message.client.name|default:message.author_name }}</a>
+                    {% else %}
+                      <strong class="title">{{ message.author_name }}</strong>
+                    {% endif %}
+                    {% if message.reply_state == 'answered' %}
+                      <span class="chip good">Отвечено</span>
+                    {% elif message.reply_state == 'overdue' %}
+                      <span class="chip danger">Просрочено</span>
+                    {% elif message.reply_state == 'unanswered' %}
+                      <span class="chip warn">Не отвечено</span>
+                    {% else %}
+                      <span class="chip info">Исходящее</span>
+                    {% endif %}
+                  </div>
+                  <div class="meta" style="margin-top:6px;">{{ message.text }}</div>
                   <div class="row" style="margin-top: 10px;">
-                    <a class="btn" href="{% url 'crm:dashboard' %}?page=clients&client={% if message.client %}{{ message.client.id }}{% endif %}#clients">Карточка</a>
-                    <a class="btn" href="{% url 'crm:dashboard' %}?page=inbox#reply">Ответ по скрипту</a>
+                    {% if message.client %}
+                      <a class="btn" href="{% url 'crm:dashboard' %}?page=inbox&client={{ message.client.id }}#reply">Ответить</a>
+                    {% endif %}
                   </div>
                 </div>
               {% empty %}
@@ -200,7 +277,35 @@
                   <strong class="title">{{ selected_client.name }}</strong>
                   <span class="chip {{ selected_client.status|status_class }}">{{ selected_client.status_label }}</span>
                 </div>
-                <div class="meta">{{ selected_client.phone|default:"—" }} · {{ selected_client.email|default:"—" }}</div>
+                <div class="meta">
+                  {{ selected_client.phone|default:"—" }}
+                  {% if selected_client.second_phone %} · {{ selected_client.second_phone }}{% endif %}
+                  · {{ selected_client.email|default:"—" }}
+                </div>
+                <div class="meta" style="margin-top: 6px;">
+                  1С: {{ selected_client.one_c_id|default:"—" }}
+                  · Источник: {{ selected_client.source|default:"—" }}
+                  · Канал: {{ selected_client.preferred_channel|default:"—" }}
+                </div>
+                <div class="meta" style="margin-top: 6px;">
+                  ДР: {{ selected_client.birth_date|default:"—" }}
+                  · Район: {{ selected_client.district|default:"—" }}
+                  · Карта: {{ selected_client.discount_card|default:"—" }}
+                </div>
+                <div class="meta" style="margin-top: 6px;">
+                  Системный ID: {{ selected_client.id }}
+                  · Создан: {{ selected_client.created_at|dt }}
+                </div>
+                <div class="meta" style="margin-top: 6px;">
+                  Первая покупка: {{ selected_client.first_purchase_at|default:"—"|dt }}
+                </div>
+                {% if selected_client.vk_url or selected_client.telegram_url or selected_client.whatsapp_url %}
+                <div class="meta" style="margin-top: 6px;">
+                  {% if selected_client.vk_url %}VK: {{ selected_client.vk_url }}{% endif %}
+                  {% if selected_client.telegram_url %}{% if selected_client.vk_url %} · {% endif %}Telegram: {{ selected_client.telegram_url }}{% endif %}
+                  {% if selected_client.whatsapp_url %}{% if selected_client.vk_url or selected_client.telegram_url %} · {% endif %}WhatsApp: {{ selected_client.whatsapp_url }}{% endif %}
+                </div>
+                {% endif %}
                 <div class="pill-row" style="margin-top: 10px;">
                   {% for tag in selected_client.tags %}
                     <span class="chip info">{{ tag }}</span>
@@ -244,6 +349,16 @@
 
           <div class="panel" id="reply">
             <h3>Ответить</h3>
+            {% if matched_scripts %}
+            <div style="margin-bottom: 10px;">
+              <strong style="font-size: 13px;">Подготовленный автоответ (нажмите, чтобы подставить):</strong>
+              <div class="pill-row" style="margin-top: 6px;">
+                {% for s in matched_scripts %}
+                  <button class="chip good" type="button" style="cursor: pointer; font-size: 12px;" onclick="fillScript('{{ s.answer|escapejs }}')">{{ s.trigger }}</button>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
             <form method="post" class="form-grid">
               {% csrf_token %}
               <input type="hidden" name="action" value="send_message">
@@ -258,7 +373,7 @@
               </div>
               <div class="field">
                 <label>Текст</label>
-                <textarea name="text" placeholder="Введите ответ..." required></textarea>
+                <textarea name="text" id="reply-text" placeholder="Введите ответ..." required>{% if matched_scripts %}{{ matched_scripts.0.answer }}{% endif %}</textarea>
               </div>
               <button class="btn primary" type="submit">Написать</button>
             </form>
@@ -273,64 +388,100 @@
           <div class="row" style="justify-content: space-between;">
             <div>
               <h3 class="section-title">База клиентов</h3>
-              <p class="section-desc">Поиск, дубляж по телефону, хотели, теги и история покупок.</p>
-            </div>
-            <div class="row" style="gap:6px;">
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="sync_bank">
-                <button class="btn primary" type="submit">Сверка банка</button>
-              </form>
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="export_clients_csv">
-                <button class="btn" type="submit">Экспорт CSV</button>
-              </form>
+              <p class="section-desc">По фамилии (алфавит). Клик по строке — карточка клиента.</p>
             </div>
           </div>
           <div class="searchbar" style="margin-top: 14px;">
             <form method="get" class="searchbar" style="grid-column: 1 / -1; margin: 0;">
-              <input name="q" placeholder="Поиск по ФИО, контакту, тегам..." value="{{ client_query }}">
+              <input type="hidden" name="page" value="clients">
+              <input name="q" placeholder="Поиск: фамилия, телефон, email, тег..." value="{{ client_query }}">
               <select name="client_status">
                 <option value="all">Все статусы</option>
                 <option value="buyer" {% if client_status == "buyer" %}selected{% endif %}>Покупатель</option>
                 <option value="lead" {% if client_status == "lead" %}selected{% endif %}>Лид</option>
                 <option value="unknown" {% if client_status == "unknown" %}selected{% endif %}>Нераспознанный</option>
               </select>
-              <button class="btn primary" type="submit">Фильтр</button>
+              <button class="btn primary" type="submit">Найти</button>
             </form>
           </div>
           <div class="table-wrap" style="margin-top: 16px;">
             <table class="clients-table">
               <thead>
                 <tr>
-                  <th>Клиент</th>
-                  <th>Контакты</th>
-                  <th>Статус</th>
-                  <th>Источник</th>
+                  <th style="width: 70px;">№</th>
+                  <th>ФИО</th>
+                  <th style="width: 150px;">Статус</th>
                 </tr>
               </thead>
               <tbody>
                 {% for client in clients %}
                   <tr style="cursor:pointer" onclick="openClientCard({{ client.id }})">
-                    <td><strong>{{ client.name }}</strong><span class="meta"> {{ client.one_c_id|default:"—" }}</span></td>
-                    <td>{{ client.phone|default:"—" }}<br>{{ client.email|default:"—" }}</td>
+                    <td class="meta">{{ client.id }}</td>
+                    <td><strong>{{ client.name|default:"—" }}</strong></td>
                     <td><span class="chip {{ client.status|status_class }}">{{ client.status_label }}</span></td>
-                    <td>{{ client.source|default:"—" }}</td>
                   </tr>
                 {% empty %}
-                  <tr><td colspan="4">Нет клиентов.</td></tr>
+                  <tr><td colspan="3">
+                    {% if client_query %}
+                      <div class="empty-state" style="text-align:left;">
+                        По запросу «{{ client_query }}» клиент не найден.
+                        <a class="btn primary" href="{% url 'crm:dashboard' %}?page=clients#new-client" style="margin-left:8px;">+ Создать карточку</a>
+                      </div>
+                    {% else %}
+                      Нет клиентов.
+                    {% endif %}
+                  </td></tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
           <div class="row" style="justify-content:center;gap:8px;margin-top:8px;">
             {% if client_offset > 0 %}
-              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}client_offset={{ client_offset|add:'-50' }}">← Назад</a>
+              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}{% if client_query %}q={{ client_query|urlencode }}&{% endif %}{% if client_status %}client_status={{ client_status }}&{% endif %}client_offset={{ client_offset|add:'-50' }}">← Назад</a>
             {% endif %}
             {% if has_more_clients %}
-              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}client_offset={{ client_offset|add:'50' }}">Вперёд →</a>
+              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}{% if client_query %}q={{ client_query|urlencode }}&{% endif %}{% if client_status %}client_status={{ client_status }}&{% endif %}client_offset={{ client_offset|add:'50' }}">Вперёд →</a>
             {% endif %}
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="row" style="justify-content: space-between; align-items: center;">
+            <div>
+              <h3>Подозрение на дубли</h3>
+              <p class="section-desc">Пары с пересечением по телефону, email, карте или соцконтакту. Объединение выполняется вручную.</p>
+            </div>
+            <span class="chip warn">{{ duplicate_candidates|length }} к объединению</span>
+          </div>
+          <div class="mini-list" style="margin-top: 12px;">
+            {% for pair in duplicate_candidates %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ pair.primary.name }}</strong>
+                  <span class="chip good">Основная</span>
+                </div>
+                <div class="meta">
+                  {{ pair.primary.phone|default:"—" }} · {{ pair.primary.email|default:"—" }} · {{ pair.primary.source|default:"—" }}
+                </div>
+                <div class="meta" style="margin-top: 6px;">
+                  Дубль: <strong>{{ pair.duplicate.name }}</strong> · {{ pair.duplicate.phone|default:pair.duplicate.second_phone|default:"—" }} · {{ pair.duplicate.email|default:"—" }}
+                </div>
+                <div class="pill-row" style="margin-top: 8px;">
+                  {% for reason in pair.reasons %}
+                    <span class="chip info">{{ reason }}</span>
+                  {% endfor %}
+                </div>
+                <form method="post" style="margin-top: 10px;" onsubmit="return confirm('Объединить {{ pair.duplicate.name }} в карточку {{ pair.primary.name }}?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="merge_clients">
+                  <input type="hidden" name="primary_client_id" value="{{ pair.primary.id }}">
+                  <input type="hidden" name="duplicate_client_id" value="{{ pair.duplicate.id }}">
+                  <button class="btn primary" type="submit">Объединить вручную</button>
+                </form>
+              </div>
+            {% empty %}
+              <div class="empty-state">Подозрительных дублей не найдено.</div>
+            {% endfor %}
           </div>
         </div>
 
@@ -414,33 +565,93 @@
             {% endwith %}
           {% endif %}
           <div class="divider"></div>
-          <h3>Новая карточка</h3>
+          <h3 id="new-client">Новая карточка</h3>
           <form method="post" class="form-grid">
             {% csrf_token %}
             <input type="hidden" name="action" value="create_client">
             <input type="hidden" name="client_id" value="{{ selected_client.id|default:'' }}">
-            <div class="field">
-              <label>ФИО</label>
-              <input name="name" value="{{ selected_client.name|default:'' }}" placeholder="Имя клиента" required>
+            <div class="grid-3">
+              <div class="field">
+                <label>Фамилия</label>
+                <input name="last_name" value="{{ selected_client.last_name|default:'' }}" placeholder="Фамилия">
+              </div>
+              <div class="field">
+                <label>Имя</label>
+                <input name="first_name" value="{{ selected_client.first_name|default:'' }}" placeholder="Имя">
+              </div>
+              <div class="field">
+                <label>Отчество</label>
+                <input name="patronymic" value="{{ selected_client.patronymic|default:'' }}" placeholder="Отчество">
+              </div>
             </div>
-            <div class="grid-2">
+            <div class="field">
+              <label>ФИО (резервное поле)</label>
+              <input name="name" value="{{ selected_client.name|default:'' }}" placeholder="Полное имя, если нужно сохранить как строку">
+            </div>
+            <div class="grid-3">
               <div class="field">
                 <label>Телефон</label>
                 <input name="phone" value="{{ selected_client.phone|default:'' }}" placeholder="+79990000000">
+              </div>
+              <div class="field">
+                <label>Второй телефон</label>
+                <input name="second_phone" value="{{ selected_client.second_phone|default:'' }}" placeholder="+79990000001">
               </div>
               <div class="field">
                 <label>Email</label>
                 <input name="email" value="{{ selected_client.email|default:'' }}" placeholder="client@example.com">
               </div>
             </div>
-            <div class="grid-2">
+            <div class="grid-3">
+              <div class="field">
+                <label>Системный ID</label>
+                <input value="{{ selected_client.id|default:'' }}" readonly placeholder="Заполнится после сохранения">
+              </div>
+              <div class="field">
+                <label>Дата создания</label>
+                <input value="{{ selected_client.created_at|default:''|dt }}" readonly placeholder="Формируется автоматически">
+              </div>
+              <div class="field">
+                <label>Дата первой покупки</label>
+                <input value="{{ selected_client.first_purchase_at|default:''|dt }}" readonly placeholder="Из 1С или банка">
+              </div>
+            </div>
+            <div class="grid-3">
               <div class="field">
                 <label>ID 1С</label>
                 <input name="one_c_id" value="{{ selected_client.one_c_id|default:'' }}">
               </div>
               <div class="field">
+                <label>Дата рождения</label>
+                <input name="birth_date" type="date" value="{{ selected_client.birth_date|date:'Y-m-d' }}">
+              </div>
+              <div class="field">
                 <label>Источник</label>
-                <input name="source" value="{{ selected_client.source|default:'' }}">
+                <input name="source" value="{{ selected_client.source|default:'' }}" list="source-options">
+              </div>
+            </div>
+            <div class="grid-3">
+              <div class="field">
+                <label>Ссылка VK</label>
+                <input name="vk_url" value="{{ selected_client.vk_url|default:'' }}" placeholder="vk.com/id123">
+              </div>
+              <div class="field">
+                <label>Ссылка Telegram</label>
+                <input name="telegram_url" value="{{ selected_client.telegram_url|default:'' }}" placeholder="tg://user?id=123">
+              </div>
+              <div class="field">
+                <label>Ссылка WhatsApp</label>
+                <input name="whatsapp_url" value="{{ selected_client.whatsapp_url|default:'' }}" placeholder="wa.me/79990000000">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Район проживания</label>
+                <input name="district" value="{{ selected_client.district|default:'' }}" placeholder="Например, Центральный" list="district-options">
+              </div>
+              <div class="field">
+                <label>Скидочная карта</label>
+                <input name="discount_card" value="{{ selected_client.discount_card|default:'' }}" placeholder="Номер или код карты" list="discount-card-options">
               </div>
             </div>
             <div class="field">
@@ -486,6 +697,21 @@
             </div>
             <button class="btn primary" type="submit">Сохранить</button>
           </form>
+          <datalist id="source-options">
+            {% for item in client_sources %}
+              <option value="{{ item }}"></option>
+            {% endfor %}
+          </datalist>
+          <datalist id="district-options">
+            {% for item in client_districts %}
+              <option value="{{ item }}"></option>
+            {% endfor %}
+          </datalist>
+          <datalist id="discount-card-options">
+            {% for item in client_discount_cards %}
+              <option value="{{ item }}"></option>
+            {% endfor %}
+          </datalist>
         </div>
       </section>
       {% endif %}
@@ -497,6 +723,11 @@
             <div>
               <h3 class="section-title">Тикеты и приоритеты</h3>
               <p class="section-desc">Руководство, внутренние, клиенты и системные автозадачи.</p>
+              <div class="ghost-box" style="margin-top: 8px; font-size: 12px;">
+                <strong>Как поставить задачу на тест / направить сотруднику:</strong>
+                заполните форму «Новый тикет» справа → укажите название, приоритет (P1 — от руководства, срочно … P4 — системные), исполнителя и дедлайн → «Создать».
+                Чтобы передать задачу другому сотруднику, выберите его в списке «Переназначить…» на карточке тикета.
+              </div>
             </div>
             <div class="row">
               <form method="post">
@@ -618,30 +849,11 @@
               <p class="section-desc">Остатки, резерв, товары в производстве и автосверка.</p>
             </div>
             <div class="row">
-              <form method="post">
+              <form method="post" enctype="multipart/form-data" class="row" style="gap:6px;align-items:center;flex-wrap:wrap;">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="sync_1c">
+                <input type="file" name="one_c_file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="max-width: 240px;">
                 <button class="btn primary" type="submit">Импорт 1С</button>
-              </form>
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="sync_bank">
-                <button class="btn" type="submit">CSV банка</button>
-              </form>
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="poll_avito">
-                <button class="btn" type="submit">📬 Авито</button>
-              </form>
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="poll_vk">
-                <button class="btn" type="submit">VK</button>
-              </form>
-              <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="poll_tg">
-                <button class="btn" type="submit">Telegram</button>
               </form>
               <form method="post">
                 {% csrf_token %}
@@ -675,6 +887,14 @@
                 {% endfor %}
               </tbody>
             </table>
+          </div>
+          <div class="row" style="justify-content:center;gap:8px;margin-top:8px;">
+            {% if product_offset > 0 %}
+              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}product_offset={{ product_offset|add:'-50' }}">← Назад</a>
+            {% endif %}
+            {% if has_more_products %}
+              <a class="btn" href="?{% if page %}page={{ page }}&{% endif %}product_offset={{ product_offset|add:'50' }}">Вперёд →</a>
+            {% endif %}
           </div>
         </div>
 
@@ -783,28 +1003,68 @@
       <section class="dashboard-grid" id="analytics" style="grid-template-columns: 1.2fr .9fr;">
         <div class="panel">
           <h3 class="section-title">Аналитика</h3>
-          <p class="section-desc">KPI, динамика продаж и эффективность каналов.</p>
+          <p class="section-desc">KPI, отчёт по периоду и эффективность каналов.</p>
+          <form method="get" class="form-grid" style="margin-top: 12px;">
+            <input type="hidden" name="page" value="analytics">
+            <div class="grid-2">
+              <div class="field">
+                <label>Дата c</label>
+                <input type="date" name="analytics_start" value="{{ analytics_start }}">
+              </div>
+              <div class="field">
+                <label>Дата по</label>
+                <input type="date" name="analytics_end" value="{{ analytics_end }}">
+              </div>
+            </div>
+            <div class="row" style="gap: 8px;">
+              <button class="btn primary" type="submit">Обновить отчёт</button>
+              <span class="chip info">{{ analytics_summary.period_label }}</span>
+            </div>
+          </form>
+          <form method="post" style="margin-top: 8px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="export_analytics_csv">
+            <input type="hidden" name="analytics_start" value="{{ analytics_start }}">
+            <input type="hidden" name="analytics_end" value="{{ analytics_end }}">
+            <button class="btn" type="submit">Экспорт аналитики CSV</button>
+          </form>
           <div class="grid-cards" style="margin-top: 16px;">
             <div class="metric">
-              <div class="label">Всего клиентов</div>
-              <div class="value" style="font-size: 24px;">{{ total_clients }}</div>
+              <div class="label">Новые клиенты</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.period_clients }}</div>
             </div>
             <div class="metric">
               <div class="label">Покупатели</div>
-              <div class="value" style="font-size: 24px;">{{ buyers_count }}</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.period_buyers }}</div>
             </div>
             <div class="metric">
-              <div class="label">Лиды</div>
-              <div class="value" style="font-size: 24px;">{{ leads_count }}</div>
+              <div class="label">Заказы</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.period_orders }}</div>
             </div>
             <div class="metric">
-              <div class="label">Нераспознанные</div>
-              <div class="value" style="font-size: 24px;">{{ unknown_count }}</div>
+              <div class="label">Выручка</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.period_revenue|money }}</div>
+            </div>
+            <div class="metric">
+              <div class="label">Конверсия в покупателя</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.conversion_rate }}%</div>
+            </div>
+            <div class="metric">
+              <div class="label">Выполнение задач</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.task_completion_rate }}%</div>
+            </div>
+            <div class="metric">
+              <div class="label">Просрочка открытых</div>
+              <div class="value" style="font-size: 24px;">{{ analytics_summary.overdue_rate }}%</div>
+            </div>
+            <div class="metric">
+              <div class="label">Средний ответ</div>
+              <div class="value" style="font-size: 24px;">{% if analytics_summary.avg_response_minutes %}{{ analytics_summary.avg_response_minutes }} мин{% else %}—{% endif %}</div>
             </div>
           </div>
           <div class="divider"></div>
           <div>
-            <h3>Выручка по периодам</h3>
+            <h3>Динамика покупателей</h3>
             <canvas id="revenueChart" height="200"></canvas>
           </div>
           <div class="divider"></div>
@@ -818,6 +1078,7 @@
                   <th>Сообщений</th>
                   <th>Задач</th>
                   <th>Выполнено</th>
+                  <th>Ответ</th>
                   <th>Конверсия</th>
                 </tr>
               </thead>
@@ -829,43 +1090,93 @@
                     <td>{{ kpi.messages }}</td>
                     <td>{{ kpi.tasks }}</td>
                     <td>{{ kpi.done }}</td>
+                    <td>{% if kpi.avg_response_minutes %}{{ kpi.avg_response_minutes }} мин{% else %}—{% endif %}</td>
                     <td><span class="chip {% if kpi.conversion > 50 %}good{% else %}warn{% endif %}">{{ kpi.conversion }}%</span></td>
                   </tr>
                 {% empty %}
-                  <tr><td colspan="6">Нет данных.</td></tr>
+                  <tr><td colspan="7">Нет данных.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="divider"></div>
+          <h3>Эффективность каналов</h3>
+          <div class="table-wrap" style="margin-top: 12px; overflow-x: auto;">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Канал</th>
+                  <th>Клиенты</th>
+                  <th>Покупатели</th>
+                  <th>Входящие</th>
+                  <th>Исходящие</th>
+                  <th>Непрочитано</th>
+                  <th>Конверсия</th>
+                  <th>Выручка</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for channel in channel_stats %}
+                  <tr>
+                    <td>{{ channel.channel }}</td>
+                    <td>{{ channel.clients }}</td>
+                    <td>{{ channel.buyers }}</td>
+                    <td>{{ channel.inbound }}</td>
+                    <td>{{ channel.outbound }}</td>
+                    <td><span class="chip {% if channel.unread %}warn{% else %}good{% endif %}">{{ channel.unread }}</span></td>
+                    <td>{{ channel.conversion }}%</td>
+                    <td>{{ channel.revenue|money }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8">Нет данных по каналам.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
         </div>
         <div class="panel">
-          <h3>Выручка</h3>
-          <p class="section-desc">Покупки (1С + банк) + заказы.</p>
+          <h3>Отчётный период</h3>
+          <p class="section-desc">Сводка по заказам, статусам клиентов и каналам за выбранный диапазон.</p>
           <div style="display:flex;gap:14px;margin-bottom:10px;">
             <div class="metric"><div class="label">Заказов всего</div><div class="value" style="font-size:20px;">{{ order_count }}</div></div>
             <div class="metric"><div class="label">Сумма заказов</div><div class="value" style="font-size:20px;">{{ order_revenue|money }}</div></div>
           </div>
           <div class="stack" style="margin-top: 14px;">
             <div class="revenue-period">
-              <span class="chip good">Сегодня</span>
-              <span class="revenue-amount">{{ revenue_today|money }}</span>
+              <span class="chip good">Лиды</span>
+              <span class="revenue-amount">{{ leads_count }}</span>
             </div>
             <div class="revenue-period">
-              <span class="chip info">Неделя</span>
-              <span class="revenue-amount">{{ revenue_week|money }}</span>
+              <span class="chip info">Нераспознанные</span>
+              <span class="revenue-amount">{{ unknown_count }}</span>
             </div>
             <div class="revenue-period">
-              <span class="chip warn">Месяц</span>
-              <span class="revenue-amount">{{ revenue_month|money }}</span>
+              <span class="chip warn">Средний ответ</span>
+              <span class="revenue-amount">{% if analytics_summary.avg_response_minutes %}{{ analytics_summary.avg_response_minutes }} мин{% else %}—{% endif %}</span>
             </div>
             <div class="revenue-period">
-              <span class="chip">6 месяцев</span>
-              <span class="revenue-amount">{{ revenue_6months|money }}</span>
+              <span class="chip">Топ-канал</span>
+              <span class="revenue-amount">{% if top_channels %}{{ top_channels.0.channel }}{% else %}—{% endif %}</span>
             </div>
             <div class="revenue-period">
-              <span class="chip" style="background: var(--surface-dark); color: #fff;">Всё время</span>
-              <span class="revenue-amount" style="font-size: 24px; font-weight: 700;">{{ revenue_total|money }}</span>
+              <span class="chip" style="background: var(--surface-dark); color: #fff;">Выручка периода</span>
+              <span class="revenue-amount" style="font-size: 24px; font-weight: 700;">{{ analytics_summary.period_revenue|money }}</span>
             </div>
+          </div>
+          <div class="divider"></div>
+          <h3>Топ каналов</h3>
+          <div class="mini-list" style="margin-top: 12px;">
+            {% for channel in top_channels %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ channel.channel }}</strong>
+                  <span class="chip info">{{ channel.conversion }}%</span>
+                </div>
+                <div class="meta">Клиентов: {{ channel.clients }} · Покупателей: {{ channel.buyers }} · Выручка: {{ channel.revenue|money }}</div>
+              </div>
+            {% empty %}
+              <div class="empty-state">Нет данных по каналам.</div>
+            {% endfor %}
           </div>
           <div class="divider"></div>
           <h3>Динамика тикетов</h3>
@@ -873,6 +1184,10 @@
           <div class="divider"></div>
           <h3>Динамика остатков</h3>
           <div class="stack" style="margin-top: 10px;">
+            <div class="metric">
+              <div class="label">Оценка доступного склада</div>
+              <div class="value" style="font-size: 22px;">{{ analytics_summary.stock_value|money }}</div>
+            </div>
             <div class="metric">
               <div class="label">Критический остаток</div>
               <div class="value" style="font-size: 22px; color: var(--danger);">{{ critical_stock }}</div>
@@ -887,18 +1202,20 @@
       <script>
       const chartColors = { grid: 'rgba(0,0,0,0.06)', text: '#6e6e73' };
       new Chart(document.getElementById('revenueChart'), {
-        type: 'bar',
+        type: 'line',
         data: {
-          labels: ['Сегодня', 'Неделя', 'Месяц', '6 мес', 'Всё время'],
+          labels: [{% for row in buyers_growth %}'{{ row.label }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
           datasets: [{
-            label: 'Выручка',
-            data: [{{ revenue_today|floatformat:"0" }}, {{ revenue_week|floatformat:"0" }}, {{ revenue_month|floatformat:"0" }}, {{ revenue_6months|floatformat:"0" }}, {{ revenue_total|floatformat:"0" }}],
-            backgroundColor: ['rgba(196,40,47,0.7)', 'rgba(196,40,47,0.55)', 'rgba(196,40,47,0.4)', 'rgba(196,40,47,0.25)', 'rgba(196,40,47,0.12)'],
+            label: 'Покупатели',
+            data: [{% for row in buyers_growth %}{{ row.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: 'rgba(196,40,47,0.12)',
             borderColor: '#C4282F',
-            borderWidth: 1
+            borderWidth: 2,
+            fill: true,
+            tension: 0.35
           }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { color: chartColors.text } }, x: { grid: { display: false }, ticks: { color: chartColors.text } } } }
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { color: chartColors.text, precision: 0 } }, x: { grid: { display: false }, ticks: { color: chartColors.text } } } }
       });
 
       new Chart(document.getElementById('tasksChart'), {
@@ -953,6 +1270,7 @@
                       <strong class="title">{{ user.username }}</strong>
                       <span class="chip {% if user.is_active %}good{% else %}danger{% endif %}">{{ user.profile.get_role_display|default:"Пользователь" }}</span>
                     </div>
+                    <div class="meta">{{ user.get_full_name|default:"Без имени" }} · {{ user.email|default:"почта не указана" }}</div>
                     <form method="post" class="form-grid" style="margin-top: 8px;">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="update_user">
@@ -997,16 +1315,57 @@
                       <div class="row">
                         <button class="btn primary" type="submit">Сохранить</button>
                         <label class="chip"><input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}> Активен</label>
-                        <form method="post" style="display:inline;" onsubmit="return confirm('Удалить пользователя {{ user.username }}?')">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="delete_user">
-                          <input type="hidden" name="user_id" value="{{ user.id }}">
-                          <button class="btn danger" type="submit">× Удалить</button>
-                        </form>
+                        <button class="btn {% if user.is_active %}danger{% endif %}" type="submit" form="toggle-user-{{ user.id }}">{% if user.is_active %}Блокировать{% else %}Разблокировать{% endif %}</button>
+                        <button class="btn danger" type="submit" form="delete-user-{{ user.id }}" onclick="return confirm('Удалить пользователя {{ user.username }}?')">× Удалить</button>
                       </div>
+                    </form>
+                    <form id="toggle-user-{{ user.id }}" method="post" style="display:none;">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="toggle_user">
+                      <input type="hidden" name="user_id" value="{{ user.id }}">
+                    </form>
+                    <form id="delete-user-{{ user.id }}" method="post" style="display:none;">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_user">
+                      <input type="hidden" name="user_id" value="{{ user.id }}">
                     </form>
                   </div>
                 {% endfor %}
+              </div>
+              <div class="divider"></div>
+              <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                  <h3 style="font-size: 15px;">Заблокированные сотрудники</h3>
+                  <div class="mini-list" style="margin-top: 10px;">
+                    {% for user in blocked_users %}
+                      <div class="mini-item">
+                        <div class="head">
+                          <strong class="title">{{ user.username }}</strong>
+                          <span class="chip danger">off</span>
+                        </div>
+                        <div class="meta">{{ user.get_full_name|default:"Без имени" }}</div>
+                      </div>
+                    {% empty %}
+                      <div class="empty-state">Сейчас все сотрудники активны.</div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div>
+                  <h3 style="font-size: 15px;">Последние админ-действия</h3>
+                  <div class="mini-list" style="margin-top: 10px;">
+                    {% for item in admin_recent_actions %}
+                      <div class="mini-item">
+                        <div class="head">
+                          <strong class="title">{{ item.action }}</strong>
+                          <span class="chip info">{{ item.created_at|dt }}</span>
+                        </div>
+                        <div class="meta">{{ item.actor }} · {{ item.after|default:"—" }}</div>
+                      </div>
+                    {% empty %}
+                      <div class="empty-state">Журнал пока пуст.</div>
+                    {% endfor %}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1014,6 +1373,26 @@
         <div class="panel">
           <div class="subgrid">
             <div>
+              <div class="mini-item" style="margin-bottom: 16px;">
+                <div class="head">
+                  <strong class="title">Avito</strong>
+                  <span class="chip info">Ручное подключение</span>
+                </div>
+                <div class="meta">Запросите код, введите СМС и после этого вручную забирайте сообщения из CRM.</div>
+                <div class="row" style="gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+                  <form method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="start_avito_web_login">
+                    <button class="btn" type="submit">Запросить код Avito</button>
+                  </form>
+                  <form method="post" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin: 0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="confirm_avito_web_login">
+                    <input name="avito_code" placeholder="Код из СМС Avito" style="max-width: 180px;">
+                    <button class="btn primary" type="submit">Подтвердить код</button>
+                  </form>
+                </div>
+              </div>
               <h3>Словари</h3>
               <p class="section-desc">Теги, статусы, интересы — управление.</p>
               <form method="post" class="form-grid" style="margin-top: 10px;">
@@ -1037,11 +1416,61 @@
                   <label>Название</label>
                   <input name="label" placeholder="Название для отображения">
                 </div>
+                <div class="field">
+                  <label>Порядок</label>
+                  <input name="sort_order" type="number" value="0">
+                </div>
                 <button class="btn primary" type="submit">Добавить</button>
               </form>
-              <div class="pill-row" style="margin-top: 12px;">
-                {% for entry in dict_tags %}
-                  <span class="chip info">{{ entry.label }} <form method="post" style="display: inline; margin: 0;">{% csrf_token %}<input type="hidden" name="action" value="dict_delete"><input type="hidden" name="entry_id" value="{{ entry.id }}"><button type="submit" style="background: none; border: none; cursor: pointer; padding: 0; margin-left: 4px; color: var(--danger); font-size: 12px;">x</button></form></span>
+              <div class="mini-list" style="margin-top: 12px;">
+                {% for section in dictionary_sections %}
+                  <div class="mini-item">
+                    <div class="head">
+                      <strong class="title">{{ section.label }}</strong>
+                      <span class="chip info">{{ section.entries|length }}</span>
+                    </div>
+                    <div class="table-wrap" style="margin-top: 10px; overflow-x: auto;">
+                      <table class="analytics-table">
+                        <thead>
+                          <tr>
+                            <th>Ключ</th>
+                            <th>Название</th>
+                            <th>Порядок</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for entry in section.entries %}
+                            <tr>
+                              <td>
+                                <form id="dict-entry-{{ entry.id }}" method="post" style="margin: 0;">
+                                  {% csrf_token %}
+                                  <input type="hidden" name="action" value="dict_update">
+                                  <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                                  <input name="key" value="{{ entry.key }}">
+                                </form>
+                              </td>
+                              <td><input form="dict-entry-{{ entry.id }}" name="label" value="{{ entry.label }}"></td>
+                              <td><input form="dict-entry-{{ entry.id }}" name="sort_order" type="number" value="{{ entry.sort_order }}"></td>
+                              <td>
+                                <div class="row" style="gap: 6px;">
+                                  <button form="dict-entry-{{ entry.id }}" class="btn" type="submit" style="min-height: 30px; padding: 0 10px; font-size: 12px;">Сохранить</button>
+                                  <button form="dict-delete-{{ entry.id }}" class="btn danger" type="submit" style="min-height: 30px; padding: 0 10px; font-size: 12px;">Удалить</button>
+                                </div>
+                                <form id="dict-delete-{{ entry.id }}" method="post" style="display:none;">
+                                  {% csrf_token %}
+                                  <input type="hidden" name="action" value="dict_delete">
+                                  <input type="hidden" name="entry_id" value="{{ entry.id }}">
+                                </form>
+                              </td>
+                            </tr>
+                          {% empty %}
+                            <tr><td colspan="4">Словарь пуст.</td></tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 {% endfor %}
               </div>
             </div>
@@ -1083,6 +1512,22 @@
           </div>
         </div>
         <div class="panel">
+          <h3>Импорт / экспорт клиентов</h3>
+          <p class="section-desc">Сверка банковской выписки (CSV) и выгрузка клиентской базы. Доступно только в админке.</p>
+          <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+            <form method="post" enctype="multipart/form-data" class="row" style="gap:6px;align-items:center;flex-wrap:wrap;margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="sync_bank">
+              <input type="file" name="bank_csv" accept=".csv,text/csv" required style="max-width: 220px;">
+              <button class="btn primary" type="submit">Сверка банка</button>
+            </form>
+            <form method="post" style="margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="export_clients_csv">
+              <button class="btn" type="submit">Экспорт клиентов CSV</button>
+            </form>
+          </div>
+          <div class="divider"></div>
           <h3>CSV импорт пользователей</h3>
           <form method="post" class="form-grid">
             {% csrf_token %}
@@ -1108,6 +1553,62 @@ new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
           </div>
         </div>
         <div class="panel">
+          <h3>Матрица прав</h3>
+          <p class="section-desc">Разделы и действия по ролям.</p>
+          <div class="table-wrap" style="margin-top: 12px; max-height: 460px; overflow: auto;">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Роль</th>
+                  <th>Ресурс</th>
+                  <th>Чтение</th>
+                  <th>Запись</th>
+                  <th>Удаление</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for permission in role_permissions %}
+                  <tr>
+                    <td>{{ permission.get_role_display }}</td>
+                    <td>{{ permission.get_resource_display }}</td>
+                    <td>
+                      <form id="permission-{{ permission.id }}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_permission">
+                        <input type="hidden" name="role" value="{{ permission.role }}">
+                        <input type="hidden" name="resource" value="{{ permission.resource }}">
+                        <input type="checkbox" name="can_read" {% if permission.can_read %}checked{% endif %}>
+                      </form>
+                    </td>
+                    <td><input form="permission-{{ permission.id }}" type="checkbox" name="can_write" {% if permission.can_write %}checked{% endif %}></td>
+                    <td><input form="permission-{{ permission.id }}" type="checkbox" name="can_delete" {% if permission.can_delete %}checked{% endif %}></td>
+                    <td><button form="permission-{{ permission.id }}" class="btn" type="submit" style="min-height: 30px; padding: 0 10px; font-size: 12px;">Сохранить</button></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6">Права будут созданы автоматически при следующем открытии раздела.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="divider"></div>
+          <h3>История изменений прав</h3>
+          <div class="mini-list" style="margin-top: 12px;">
+            {% for item in permission_audit_entries %}
+              <div class="mini-item">
+                <div class="head">
+                  <strong class="title">{{ item.actor }}</strong>
+                  <span class="chip info">{{ item.created_at|dt }}</span>
+                </div>
+                <div class="meta">{{ item.before|truncatechars:90 }}</div>
+                <div class="meta" style="margin-top: 4px;">{{ item.after|truncatechars:120 }}</div>
+              </div>
+            {% empty %}
+              <div class="empty-state">Изменений прав пока нет.</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="panel">
           <h3>Режим Бога</h3>
           <p class="section-desc">Все переписки всех сотрудников.</p>
           <div class="mini-list" style="margin-top: 12px;">
@@ -1118,7 +1619,13 @@ new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
                   <span class="chip {{ msg.direction|status_class }}">{{ msg.get_direction_display }}</span>
                 </div>
                 <div class="meta">{{ msg.text|truncatechars:120 }}</div>
-                <div class="meta" style="font-size: 11px;">{{ msg.created_at|dt }} · назначено: {{ msg.assigned_to.get_full_name|default:msg.assigned_to.username|default:"—" }}</div>
+                <div class="meta" style="font-size: 11px;">{{ msg.created_at|dt }} · назначено:
+                  {% if msg.assigned_to %}
+                    {{ msg.assigned_to.get_full_name|default:msg.assigned_to.username }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
               </a>
             {% empty %}
               <div class="empty-state">Нет сообщений.</div>
@@ -1130,7 +1637,13 @@ new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
             {% for event in fraud_events %}
               <div class="mini-item {% if event.blocked %}blink{% endif %}">
                 <div class="head">
-                  <strong class="title">{{ event.employee.get_full_name|default:event.employee.username }}</strong>
+                  <strong class="title">
+                    {% if event.employee %}
+                      {{ event.employee.get_full_name|default:event.employee.username }}
+                    {% else %}
+                      Не назначен
+                    {% endif %}
+                  </strong>
                   <span class="chip {% if event.blocked %}danger{% else %}info{% endif %}">{{ event.action }}</span>
                 </div>
                 <div class="meta">{{ event.detail }} · {{ event.ip_address }} · {{ event.created_at|dt }}</div>
@@ -1146,6 +1659,11 @@ new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
           <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
             <div>
               <strong style="font-size: 14px; display: block; margin-bottom: 10px;">Существующие скрипты</strong>
+              <form method="get" class="searchbar" style="margin-bottom: 10px;">
+                <input type="hidden" name="page" value="admin">
+                <input name="script_search" placeholder="Фильтр по триггеру или ответу..." value="{{ script_search }}">
+                <button class="btn" type="submit">Найти</button>
+              </form>
               <div class="mini-list">
                 {% for script in db_scripts %}
                   <div class="mini-item">
@@ -1245,6 +1763,152 @@ new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
                 <button class="btn primary" type="submit">Сохранить статью</button>
               </form>
             </div>
+          </div>
+        </div>
+        <div class="panel" style="grid-column: 1 / -1; margin-top: 16px;">
+          <h3>Режим автоответа</h3>
+          <p class="section-desc">VK и Telegram опрашиваются каждую минуту. Автоответ включается только вне рабочих часов по времени Москвы, согласно графику ниже.</p>
+          <form method="post" class="form-grid" style="margin-top: 10px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_schedule">
+            <div class="field">
+              <label>Рабочие дни</label>
+              <div class="row" style="flex-wrap: wrap; gap: 8px;">
+                <label class="chip"><input type="checkbox" name="working_days" value="0" {% if '0' in schedule.working_days|default:'' %}checked{% endif %}> Пн</label>
+                <label class="chip"><input type="checkbox" name="working_days" value="1" {% if '1' in schedule.working_days|default:'' %}checked{% endif %}> Вт</label>
+                <label class="chip"><input type="checkbox" name="working_days" value="2" {% if '2' in schedule.working_days|default:'' %}checked{% endif %}> Ср</label>
+                <label class="chip"><input type="checkbox" name="working_days" value="3" {% if '3' in schedule.working_days|default:'' %}checked{% endif %}> Чт</label>
+                <label class="chip"><input type="checkbox" name="working_days" value="4" {% if '4' in schedule.working_days|default:'' %}checked{% endif %}> Пт</label>
+                <label class="chip"><input type="checkbox" name="working_days" value="5" {% if '5' in schedule.working_days|default:'' %}checked{% endif %}> Сб</label>
+                <label class="chip"><input type="checkbox" name="working_days" value="6" {% if '6' in schedule.working_days|default:'' %}checked{% endif %}> Вс</label>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Рабочее время c</label>
+                <input name="workday_start" type="time" value="{{ schedule.workday_start|default:'11:00'|time:'H:i' }}">
+              </div>
+              <div class="field">
+                <label>Рабочее время до</label>
+                <input name="workday_end" type="time" value="{{ schedule.workday_end|default:'20:00'|time:'H:i' }}">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>Резерв: выходные c</label>
+                <input name="weekend_start" type="time" value="{{ schedule.weekend_start|default:'10:00'|time:'H:i' }}">
+              </div>
+              <div class="field">
+                <label>Резерв: выходные до</label>
+                <input name="weekend_end" type="time" value="{{ schedule.weekend_end|default:'18:00'|time:'H:i' }}">
+              </div>
+            </div>
+            <div class="field">
+              <label>Автоответ по каналам</label>
+              <div class="row" style="flex-wrap: wrap; gap: 8px;">
+                <label class="chip"><input type="checkbox" name="auto_reply_vk_enabled" {% if schedule.auto_reply_vk_enabled %}checked{% endif %}> VK</label>
+                <label class="chip"><input type="checkbox" name="auto_reply_tg_enabled" {% if schedule.auto_reply_tg_enabled %}checked{% endif %}> Telegram</label>
+              </div>
+            </div>
+            <div class="field">
+              <label>Аварийное отключение</label>
+              <div class="row" style="flex-wrap: wrap; gap: 8px;">
+                <label class="chip">
+                  <input type="checkbox" name="auto_reply_emergency_disabled" {% if schedule.auto_reply_emergency_disabled %}checked{% endif %}>
+                  Полностью отключить автоответ
+                </label>
+              </div>
+              <small style="display:block; margin-top: 8px; color: rgba(230, 232, 236, 0.72);">
+                Используйте при авариях или ручной работе. Сбор сообщений в CRM продолжит работать, отключится только ответ бота.
+              </small>
+            </div>
+            <div class="field">
+              <label>Игнорировать авторов</label>
+              <textarea name="ignored_author_names" style="min-height: 90px;">{{ schedule.ignored_author_names|default:'Secret Garden\nЛокация Secret Garden\nSecret-chat\nSecret Garden - своя атмосфера' }}</textarea>
+            </div>
+            <div class="field">
+              <label>Адрес магазина</label>
+              <input name="address" value="{{ schedule.address|default:'' }}" placeholder="Москва, ул. Листовая, 17">
+            </div>
+            <div class="field">
+              <label>Текст автоответа</label>
+              <textarea name="message_template" style="min-height: 80px;">{{ schedule.message_template|default:'Здравствуйте! Сейчас магазин не работает.\nГрафик работы:\nБудни: {workday_start} – {workday_end}\nВыходные: {weekend_start} – {weekend_end}\nНаш адрес: {address}\nОставьте сообщение — мы ответим в рабочее время.' }}</textarea>
+            </div>
+            <button class="btn primary" type="submit">Сохранить расписание</button>
+          </form>
+        </div>
+        <div class="panel" id="shifts" style="grid-column: 1 / -1; margin-top: 16px;">
+          <h3>График смен</h3>
+          <p class="section-desc">Роль привязана к смене (дате), а не к учётной записи. Например: «Анна — 03.06 на фронте». Это отдельно от роли прав доступа.</p>
+          {% if today_shifts %}
+          <div class="pill-row" style="margin-top: 10px;">
+            <span class="chip info">Сегодня в смене:</span>
+            {% for s in today_shifts %}
+              <span class="chip good">{{ s.employee.get_full_name|default:s.employee.username }} · {{ s.get_role_display }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <form method="post" class="row" style="gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_shift">
+            <div class="field" style="margin: 0;">
+              <label style="font-size: 12px;">Дата</label>
+              <input type="date" name="shift_date" required>
+            </div>
+            <div class="field" style="margin: 0;">
+              <label style="font-size: 12px;">Сотрудник</label>
+              <select name="shift_employee" required>
+                {% for u in all_users %}
+                  <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field" style="margin: 0;">
+              <label style="font-size: 12px;">Роль в смене</label>
+              <select name="shift_role" required>
+                {% for value, label in role_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field" style="margin: 0; flex: 1; min-width: 140px;">
+              <label style="font-size: 12px;">Примечание</label>
+              <input name="shift_note" placeholder="Необязательно">
+            </div>
+            <button class="btn primary" type="submit">Назначить</button>
+          </form>
+          <div class="table-wrap" style="margin-top: 14px; max-height: 360px; overflow: auto;">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Сотрудник</th>
+                  <th>Роль в смене</th>
+                  <th>Примечание</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in shift_assignments %}
+                  <tr>
+                    <td>{{ s.date|date:"d.m.Y" }}</td>
+                    <td>{{ s.employee.get_full_name|default:s.employee.username }}</td>
+                    <td><span class="chip info">{{ s.get_role_display }}</span></td>
+                    <td class="meta">{{ s.note|default:"—" }}</td>
+                    <td>
+                      <form method="post" style="margin:0;" onsubmit="return confirm('Удалить смену?')">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_shift">
+                        <input type="hidden" name="shift_id" value="{{ s.id }}">
+                        <button class="btn danger" type="submit" style="min-height:30px;padding:0 10px;font-size:12px;">Удалить</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5">Смены не назначены.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -1364,6 +2028,9 @@ function editScript(id, trigger, answer) {
   document.getElementById('script-trigger').value = trigger;
   document.getElementById('script-answer').value = answer;
   window.scrollTo({ top: document.getElementById('script-trigger').offsetTop - 100, behavior: 'smooth' });
+}
+function fillScript(text) {
+  document.getElementById('reply-text').value = text;
 }
 </script>
 {% endblock %}

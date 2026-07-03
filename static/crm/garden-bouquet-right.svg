@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560" fill="none">
+  <defs>
+    <radialGradient id="redPetal" cx="40%" cy="34%" r="70%">
+      <stop offset="0" stop-color="#ff6268"/>
+      <stop offset="0.5" stop-color="#c90e24"/>
+      <stop offset="1" stop-color="#4f0613"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="380" y1="470" x2="238" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#153626"/>
+      <stop offset="0.52" stop-color="#587d51"/>
+      <stop offset="1" stop-color="#aebc6d"/>
+    </linearGradient>
+  </defs>
+  <g opacity=".9" stroke="url(#leaf)" stroke-width="10" stroke-linecap="round">
+    <path d="M376 505C399 349 374 217 292 78"/>
+    <path d="M456 490C423 365 394 257 319 122"/>
+    <path d="M284 497C291 372 317 256 278 95"/>
+  </g>
+  <g fill="url(#leaf)" opacity=".9">
+    <path d="M357 265c51-29 53-78 10-104-35 34-39 72-10 104Z"/>
+    <path d="M436 341c61 0 85-46 57-89-48 14-71 47-57 89Z"/>
+    <path d="M271 217c5-64-40-91-87-65 14 53 44 79 87 65Z"/>
+    <path d="M279 340c-39-47-91-39-112 4 38 33 78 38 112-4Z"/>
+  </g>
+  <g transform="translate(390 405) rotate(9)">
+    <g fill="url(#redPetal)">
+      <ellipse cx="0" cy="-64" rx="42" ry="84"/>
+      <ellipse cx="0" cy="64" rx="42" ry="84"/>
+      <ellipse cx="-64" cy="0" rx="84" ry="42"/>
+      <ellipse cx="64" cy="0" rx="84" ry="42"/>
+      <ellipse cx="-45" cy="-45" rx="74" ry="32" transform="rotate(-45 -45 -45)"/>
+      <ellipse cx="45" cy="-45" rx="74" ry="32" transform="rotate(45 45 -45)"/>
+      <ellipse cx="-45" cy="45" rx="74" ry="32" transform="rotate(45 -45 45)"/>
+      <ellipse cx="45" cy="45" rx="74" ry="32" transform="rotate(-45 45 45)"/>
+    </g>
+    <circle cx="0" cy="0" r="24" fill="#d4a14a"/>
+    <circle cx="0" cy="0" r="11" fill="#5a2717" opacity=".72"/>
+  </g>
+  <g transform="translate(242 440) rotate(-18)" opacity=".78">
+    <g fill="url(#redPetal)">
+      <ellipse cx="0" cy="-36" rx="24" ry="52"/>
+      <ellipse cx="0" cy="36" rx="24" ry="52"/>
+      <ellipse cx="-36" cy="0" rx="52" ry="24"/>
+      <ellipse cx="36" cy="0" rx="52" ry="24"/>
+      <ellipse cx="-25" cy="-25" rx="44" ry="19" transform="rotate(-45 -25 -25)"/>
+      <ellipse cx="25" cy="-25" rx="44" ry="19" transform="rotate(45 25 -25)"/>
+    </g>
+    <circle cx="0" cy="0" r="15" fill="#c99443"/>
+  </g>
+</svg>

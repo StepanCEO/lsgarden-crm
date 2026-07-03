@@ -1,21 +1,33 @@
-*.pyc
 __pycache__/
-*.swp
-.env
-.env.prod
-.env.local
-*.egg-info/
-dist/
-build/
+*.pyc
+*.pyo
+*.pyd
 .venv/
 venv/
-.DS_Store
-db.sqlite3
+env/
+staticfiles/
 .pgdata/
+*.log
+.DS_Store
 
+# Secrets — never commit
+.env
+.env.prod
+.env.*.local
+keys/
+*.pem
+*_rsa
+*_ed25519
+avito_auth.json
+avito_cookies.json
+_shop_auth.json
 
-# ТЗ и дизайн-макеты
+# Local database & data
+db.sqlite3
+*.sqlite3
+
+# Binary / temp artifacts
 *.docx
 *.xlsx
-apple/
-apple-*.png
+png.jpg
+_lsg_clone/

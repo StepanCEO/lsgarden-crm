@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="520" viewBox="0 0 520 520" fill="none">
+  <defs>
+    <radialGradient id="redPetal" cx="42%" cy="36%" r="72%">
+      <stop offset="0" stop-color="#ff5a61"/>
+      <stop offset="0.5" stop-color="#c91428"/>
+      <stop offset="1" stop-color="#5b0715"/>
+    </radialGradient>
+    <radialGradient id="creamPetal" cx="43%" cy="34%" r="68%">
+      <stop offset="0" stop-color="#fff8dc"/>
+      <stop offset="0.58" stop-color="#e9d09b"/>
+      <stop offset="1" stop-color="#a8783d"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="112" y1="428" x2="295" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173b2b"/>
+      <stop offset="0.48" stop-color="#6f8b5d"/>
+      <stop offset="1" stop-color="#b5bd70"/>
+    </linearGradient>
+  </defs>
+  <g opacity=".88" stroke="url(#leaf)" stroke-width="9" stroke-linecap="round">
+    <path d="M168 460C136 337 155 187 255 60"/>
+    <path d="M95 444C114 318 150 231 231 110"/>
+    <path d="M262 456C262 330 240 218 270 92"/>
+  </g>
+  <g fill="url(#leaf)" opacity=".92">
+    <path d="M178 260c-52-24-57-72-18-101 37 29 45 67 18 101Z"/>
+    <path d="M121 338c-60 6-88-36-65-82 49 9 75 39 65 82Z"/>
+    <path d="M245 204c-13-62 29-95 78-75-8 54-34 83-78 75Z"/>
+    <path d="M261 318c34-50 86-49 112-9-34 37-73 46-112 9Z"/>
+  </g>
+  <g transform="translate(102 402) rotate(-10)">
+    <g fill="url(#redPetal)">
+      <ellipse cx="0" cy="-50" rx="34" ry="72"/>
+      <ellipse cx="0" cy="50" rx="34" ry="72"/>
+      <ellipse cx="-50" cy="0" rx="72" ry="34"/>
+      <ellipse cx="50" cy="0" rx="72" ry="34"/>
+      <ellipse cx="-36" cy="-36" rx="62" ry="27" transform="rotate(-45 -36 -36)"/>
+      <ellipse cx="36" cy="-36" rx="62" ry="27" transform="rotate(45 36 -36)"/>
+      <ellipse cx="-36" cy="36" rx="62" ry="27" transform="rotate(45 -36 36)"/>
+      <ellipse cx="36" cy="36" rx="62" ry="27" transform="rotate(-45 36 36)"/>
+    </g>
+    <circle cx="0" cy="0" r="22" fill="#cf9a45"/>
+    <circle cx="0" cy="0" r="10" fill="#4d2616" opacity=".7"/>
+  </g>
+  <g transform="translate(264 375) rotate(18)">
+    <g fill="url(#creamPetal)">
+      <ellipse cx="0" cy="-42" rx="28" ry="58"/>
+      <ellipse cx="0" cy="42" rx="28" ry="58"/>
+      <ellipse cx="-42" cy="0" rx="58" ry="28"/>
+      <ellipse cx="42" cy="0" rx="58" ry="28"/>
+      <ellipse cx="-30" cy="-30" rx="50" ry="22" transform="rotate(-45 -30 -30)"/>
+      <ellipse cx="30" cy="-30" rx="50" ry="22" transform="rotate(45 30 -30)"/>
+      <ellipse cx="-30" cy="30" rx="50" ry="22" transform="rotate(45 -30 30)"/>
+      <ellipse cx="30" cy="30" rx="50" ry="22" transform="rotate(-45 30 30)"/>
+    </g>
+    <circle cx="0" cy="0" r="18" fill="#d0a34e"/>
+  </g>
+</svg>

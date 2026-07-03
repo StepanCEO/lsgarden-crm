@@ -2,13 +2,12 @@
 
 ## Short Summary
 
-This is a Django-based CRM for a plant shop, aligned with the Russian technical brief. The project now runs as a Django app with PostgreSQL for production and SQLite for quick local viewing. The UI uses an Apple-inspired visual style from the `apple` folder in the repo.
+This is a Django-based CRM for a plant shop, aligned with the Russian technical brief. The project now runs as a Django app backed by PostgreSQL. The UI uses an Apple-inspired visual style from the `apple` folder in the repo.
 
 ## Current Stack
 
 - Django 6.x
-- PostgreSQL for production
-- SQLite fallback for local preview
+- PostgreSQL
 - Gunicorn for containerized production
 - WhiteNoise for static files
 - Docker / Docker Compose
@@ -108,27 +107,11 @@ Main external integrations expected from the client:
 - pages are section-based
 - mobile layout collapses to a single column
 
-## Current Local Run Modes
+## Current Local Run Mode
 
-### SQLite preview
+### PostgreSQL
 
-Use this if you only want to inspect the UI quickly.
-
-```powershell
-$env:DJANGO_USE_SQLITE="1"
-$env:DJANGO_SECRET_KEY="test-secret-key"
-$env:DJANGO_DEBUG="1"
-python manage.py migrate
-python manage.py runserver
-```
-
-Open:
-
-- `http://127.0.0.1:8000/login/`
-
-### PostgreSQL mode
-
-Use this for actual production-like behavior.
+Use this for local and production-like behavior.
 
 Required env vars:
 
@@ -146,7 +129,6 @@ Example:
 
 ```powershell
 $env:DJANGO_DEBUG="0"
-$env:DJANGO_USE_SQLITE="0"
 $env:DJANGO_SECRET_KEY="replace-with-real-secret"
 $env:DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1,crm.example.com"
 $env:DJANGO_CSRF_TRUSTED_ORIGINS="https://crm.example.com"
@@ -288,11 +270,9 @@ python manage.py collectstatic --noinput
 
 ## Notes for the Next AI
 
-- Do not remove the SQLite fallback unless explicitly asked.
 - Do not revert the Apple-style interface unless requested.
 - The project is meant to stay Django-first.
 - Preserve the current file structure unless there is a strong reason to refactor.
 - If changing templates, always check for horizontal overflow and broken sidebar/sidebar-footer behavior.
 - If adding new context variables, avoid names that collide with Django built-in `messages`.
 - If extending the training section, keep the content practical and role-oriented.
-

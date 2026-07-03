@@ -11,25 +11,19 @@ CRM на Django + PostgreSQL по ТЗ для магазина растений.
 
 1. Скопируйте `.env.example` в `.env` и при необходимости поправьте значения.
 
-2. Если хотите просто посмотреть интерфейс без PostgreSQL, включите SQLite:
-
-```powershell
-$env:DJANGO_USE_SQLITE="1"
-```
-
-3. Поднимите PostgreSQL:
+2. Поднимите PostgreSQL:
 
 ```bash
 docker compose up -d db
 ```
 
-4. Примените миграции:
+3. Примените миграции:
 
 ```bash
 python manage.py migrate
 ```
 
-5. Запустите сервер:
+4. Запустите сервер:
 
 ```bash
 python manage.py runserver
@@ -40,8 +34,6 @@ python manage.py runserver
 ```bash
 python manage.py seed_demo
 ```
-
-В режиме SQLite эту же команду можно запускать после миграций.
 
 Откройте `http://127.0.0.1:8000`.
 

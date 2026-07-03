@@ -28,6 +28,9 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
     depends_on:
+      db:
+        condition: service_healthy
+
   backup:
     build:
       context: ./
@@ -48,15 +51,14 @@ services:
         condition: service_healthy
 
   db:
-        condition: service_healthy
-
-  db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: plant_crm
       POSTGRES_USER: plant_crm
       POSTGRES_PASSWORD: plant_crm
+    ports:
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

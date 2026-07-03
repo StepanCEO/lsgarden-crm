@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AuditEntry, Client, DictionaryEntry, EmployeeProfile, FraudEvent, KnowledgeArticle, Message, NewsItem, Order, Product, Task, UploadedFile
+from .models import AuditEntry, Client, DictionaryEntry, EmployeeProfile, FraudEvent, KnowledgeArticle, Message, NewsItem, Order, Product, RolePermission, ScheduleSettings, ShiftAssignment, Task, UploadedFile
 
 
 @admin.register(EmployeeProfile)
@@ -11,8 +11,8 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ('name', 'phone', 'status', 'source', 'preferred_channel', 'updated_at')
-    search_fields = ('name', 'phone', 'email', 'one_c_id')
+    list_display = ('name', 'phone', 'second_phone', 'email', 'status', 'source', 'preferred_channel', 'updated_at')
+    search_fields = ('name', 'last_name', 'first_name', 'patronymic', 'phone', 'second_phone', 'email', 'one_c_id', 'vk_url', 'telegram_url', 'whatsapp_url', 'contact_aliases')
     list_filter = ('status', 'source', 'preferred_channel', 'green_list', 'black_list')
 
 
@@ -70,6 +70,12 @@ class DictionaryEntryAdmin(admin.ModelAdmin):
     search_fields = ('key', 'label')
 
 
+@admin.register(RolePermission)
+class RolePermissionAdmin(admin.ModelAdmin):
+    list_display = ('role', 'resource', 'can_read', 'can_write', 'can_delete', 'updated_at')
+    list_filter = ('role', 'resource', 'can_read', 'can_write', 'can_delete')
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'client', 'status', 'total', 'created_at')
@@ -81,3 +87,52 @@ class OrderAdmin(admin.ModelAdmin):
 class UploadedFileAdmin(admin.ModelAdmin):
     list_display = ('original_name', 'tag', 'file_size', 'uploaded_by', 'uploaded_at')
     search_fields = ('original_name', 'tag')
+
+
+@admin.register(ScheduleSettings)
+class ScheduleSettingsAdmin(admin.ModelAdmin):
+    list_display = (
+        'workday_start',
+        'workday_end',
+        'working_days',
+        'auto_reply_vk_enabled',
+        'auto_reply_tg_enabled',
+        'auto_reply_emergency_disabled',
+        'reply_mode',
+        'address',
+    )
+    list_filter = ('auto_reply_emergency_disabled', 'auto_reply_vk_enabled', 'auto_reply_tg_enabled')
+    fieldsets = (
+        ('Рабочее время', {
+            'fields': ('working_days', 'workday_start', 'workday_end', 'weekend_start', 'weekend_end'),
+        }),
+        ('Управление автоответом', {
+            'fields': (
+                'auto_reply_emergency_disabled',
+                'auto_reply_vk_enabled',
+                'auto_reply_tg_enabled',
+                'ignored_author_names',
+            ),
+            'description': 'Аварийное отключение останавливает только автоответ. Сбор сообщений продолжает работать.',
+        }),
+        ('Сообщение', {
+            'fields': ('address', 'message_template'),
+        }),
+    )
+
+    @admin.display(description='Режим')
+    def reply_mode(self, obj):
+        return 'Аварийно отключен' if obj.auto_reply_emergency_disabled else 'По расписанию'
+
+    def has_add_permission(self, request):
+        if ScheduleSettings.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+
+@admin.register(ShiftAssignment)
+class ShiftAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('date', 'employee', 'role', 'note')
+    list_filter = ('role', 'date')
+    search_fields = ('employee__username', 'employee__first_name', 'employee__last_name', 'note')
+    date_hierarchy = 'date'

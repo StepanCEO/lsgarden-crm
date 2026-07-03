@@ -2,6 +2,10 @@
   --primary: #2D8A4E;
   --primary-focus: #236B3E;
   --primary-on-dark: #35A05E;
+  --auth-deep: #163E3B;
+  --auth-cream: #EFE5C9;
+  --auth-red: #C93D45;
+  --auth-gold: #B8B16A;
   --ink: #1D1D1F;
   --ink-muted: #6E6E73;
   --ink-soft: #86868B;
@@ -168,14 +172,14 @@ tr {
 html, body { min-height: 100%; }
 body {
   margin: 0;
-  font-family: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   background: var(--parchment);
   color: var(--ink);
   overflow-x: hidden;
 }
 
 a { color: inherit; text-decoration: none; }
-button, input, select, textarea { font-family: "Inter", -apple-system, sans-serif; font-weight: 400; }
+button, input, select, textarea { font-family: -apple-system, sans-serif; font-weight: 400; }
 button { border: 0; cursor: pointer; }
 
 #app { min-height: 100vh; }
@@ -221,7 +225,7 @@ button { border: 0; cursor: pointer; }
 
 .brand-title {
   margin: 0 0 18px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: clamp(44px, 6vw, 76px);
   line-height: 0.95;
   letter-spacing: -0.04em;
@@ -256,7 +260,7 @@ button { border: 0; cursor: pointer; }
 .feature strong {
   display: block;
   margin-bottom: 8px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-weight: 600;
 }
 
@@ -284,7 +288,7 @@ button { border: 0; cursor: pointer; }
 .login-card h2,
 .section-title {
   margin: 0;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-weight: 600;
   letter-spacing: -0.04em;
 }
@@ -340,6 +344,12 @@ button { border: 0; cursor: pointer; }
   gap: 12px;
 }
 
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .row {
   display: flex;
   gap: 10px;
@@ -360,7 +370,7 @@ button { border: 0; cursor: pointer; }
   border: 1px solid var(--hairline);
   background: var(--canvas);
   color: var(--ink);
-  font-family: "Inter", -apple-system, sans-serif;
+  font-family: -apple-system, sans-serif;
   font-weight: 500;
   letter-spacing: -0.01em;
   transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
@@ -382,6 +392,196 @@ button { border: 0; cursor: pointer; }
 }
 
 .btn.primary:hover { background: var(--primary-focus); box-shadow: 0 4px 16px rgba(45, 138, 78, 0.25); }
+
+.auth-shell--secret-garden {
+  position: relative;
+  display: grid;
+  place-items: stretch;
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top, rgba(201, 61, 69, 0.18), transparent 30%),
+    radial-gradient(circle at right, rgba(184, 177, 106, 0.18), transparent 28%),
+    linear-gradient(160deg, #0f2f2d 0%, var(--auth-deep) 55%, #0b1f1e 100%);
+  overflow: hidden;
+}
+
+.auth-shell--secret-garden::before,
+.auth-shell--secret-garden::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.auth-shell--secret-garden::before {
+  width: 540px;
+  height: 540px;
+  top: -180px;
+  left: -120px;
+  background: radial-gradient(circle, rgba(184, 177, 106, 0.22), rgba(184, 177, 106, 0));
+}
+
+.auth-shell--secret-garden::after {
+  width: 420px;
+  height: 420px;
+  right: -120px;
+  bottom: -140px;
+  background: radial-gradient(circle, rgba(201, 61, 69, 0.2), rgba(201, 61, 69, 0));
+}
+
+.auth-panel--single {
+  width: 100%;
+  max-width: 560px;
+  margin-left: auto;
+  padding: 0 12px;
+  border-left: 1px solid rgba(239, 229, 201, 0.08);
+  background: linear-gradient(180deg, rgba(7, 19, 18, 0.08) 0%, rgba(7, 19, 18, 0.22) 100%);
+  border: 0;
+}
+
+.auth-hero-card--garden {
+  max-width: 560px;
+  padding: 42px 44px;
+  border: 1px solid rgba(239, 229, 201, 0.12);
+  border-radius: 32px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.auth-logo--hero {
+  width: min(260px, 68%);
+  margin: 0 0 26px;
+}
+
+.brand-title--garden {
+  margin-bottom: 16px;
+  color: var(--auth-cream);
+}
+
+.brand-title--garden span {
+  color: var(--auth-gold);
+}
+
+.hero-copy--garden {
+  max-width: 34ch;
+  color: rgba(239, 229, 201, 0.82);
+}
+
+.login-card--brand {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 36px 32px 28px;
+  border: 1px solid rgba(239, 229, 201, 0.18);
+  border-top: 1px solid rgba(239, 229, 201, 0.18);
+  border-radius: 30px;
+  background: linear-gradient(180deg, rgba(18, 53, 50, 0.92) 0%, rgba(13, 38, 36, 0.95) 100%);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.login-card--brand h1 {
+  margin: 0 0 10px;
+  color: var(--auth-cream);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(34px, 5vw, 42px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.auth-logo {
+  display: block;
+  width: min(220px, 62%);
+  margin: 0 auto 18px;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+}
+
+.auth-logo--compact {
+  width: min(180px, 54%);
+  margin-bottom: 14px;
+}
+
+.auth-meta {
+  margin: 0 0 18px;
+  color: rgba(239, 229, 201, 0.78);
+  text-align: center;
+}
+
+.auth-error {
+  margin-bottom: 14px;
+  border-color: rgba(201, 61, 69, 0.45);
+  background: rgba(201, 61, 69, 0.12);
+  color: #ffe7e2;
+}
+
+.login-card--brand .field {
+  margin-bottom: 16px;
+}
+
+.login-card--brand .field label {
+  color: rgba(239, 229, 201, 0.8);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-card--brand .field input {
+  border: 1px solid rgba(239, 229, 201, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--auth-cream);
+  padding: 14px 16px;
+}
+
+.login-card--brand .field input::placeholder {
+  color: rgba(239, 229, 201, 0.38);
+}
+
+.login-card--brand .field input:focus {
+  border-color: rgba(184, 177, 106, 0.78);
+  box-shadow: 0 0 0 4px rgba(184, 177, 106, 0.14);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.login-card--brand .btn {
+  border-color: rgba(239, 229, 201, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--auth-cream);
+}
+
+.login-card--brand .btn:hover {
+  border-color: rgba(239, 229, 201, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.login-card--brand .btn.primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--auth-red) 0%, #ab2e39 100%);
+  color: #fff7f0;
+}
+
+.login-card--brand .btn.primary:hover {
+  background: linear-gradient(135deg, #d34a52 0%, #b4323d 100%);
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.auth-actions .btn {
+  width: 100%;
+}
 
 .btn.danger {
   color: var(--danger);
@@ -417,18 +617,36 @@ button { border: 0; cursor: pointer; }
 .brand {
   padding: 16px;
   border-radius: 20px;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-top: 2px solid var(--primary);
+  border-top: 2px solid var(--auth-red);
+}
+
+.brand-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.brand-logo {
+  width: 100%;
+  max-width: 210px;
+  height: auto;
+  display: block;
+  border-radius: 10px;
 }
 
 .brand .name {
   margin: 0 0 4px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  color: var(--primary);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--auth-cream);
 }
 
 .brand .meta {
@@ -500,7 +718,7 @@ button { border: 0; cursor: pointer; }
 
 .topbar h1 {
   margin: 0;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.04em;
@@ -541,7 +759,7 @@ button { border: 0; cursor: pointer; }
 
 .hero-banner .title {
   margin: 0 0 6px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.04em;
@@ -574,7 +792,7 @@ button { border: 0; cursor: pointer; }
 
 .metric .value {
   margin-top: 10px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 32px;
   font-weight: 600;
   letter-spacing: -0.04em;
@@ -608,7 +826,7 @@ button { border: 0; cursor: pointer; }
 
 .panel h3 {
   margin: 0 0 14px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.04em;
@@ -844,7 +1062,7 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
 }
 
 .revenue-amount {
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -902,7 +1120,7 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
 
 .modal h3 {
   margin: 0 0 8px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.04em;
@@ -978,7 +1196,7 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
 
 .screen-lock-modal h2 {
   margin: 0 0 6px;
-  font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 26px;
   font-weight: 600;
 }
@@ -998,6 +1216,24 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
     grid-template-columns: 1fr;
     background: linear-gradient(180deg, #000 0, #000 100%);
   }
+  .auth-shell--secret-garden {
+    padding: 20px 14px;
+    background:
+      radial-gradient(circle at top, rgba(201, 61, 69, 0.18), transparent 36%),
+      linear-gradient(180deg, #123432 0%, #0d2423 100%);
+  }
+  .auth-hero-card--garden {
+    padding: 24px 20px 8px;
+    border-radius: 24px;
+    background: transparent;
+    border-color: rgba(239, 229, 201, 0.08);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .auth-logo--hero {
+    width: min(220px, 72%);
+    margin-bottom: 20px;
+  }
   .sidebar {
     position: relative;
     height: auto;
@@ -1006,7 +1242,8 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
   }
   .auth-hero {
     padding: 24px;
-    min-height: 52vh;
+    min-height: auto;
+    align-items: flex-end;
   }
   .auth-panel,
   .layout {
@@ -1018,7 +1255,576 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
   }
   .searchbar { grid-template-columns: 1fr; }
   .grid-cards { grid-template-columns: 1fr; }
+  .grid-2,
+  .grid-3 { grid-template-columns: 1fr; }
   .dashboard-grid { grid-template-columns: 1fr !important; }
   #tasks.dashboard-grid { grid-template-columns: 1fr !important; }
   .bar-row { grid-template-columns: 1fr; }
+  .login-card--brand {
+    padding: 28px 20px 22px;
+    border-radius: 24px;
+  }
+  .auth-panel--single {
+    padding: 0;
+    border-left: 0;
+    background: transparent;
+  }
+}
+
+/* Secret Garden login */
+body:has(.auth-shell--secret-garden) {
+  background: #061c19;
+}
+
+.auth-shell--secret-garden {
+  --garden-bg: #061c19;
+  --garden-bg-soft: #0c302b;
+  --garden-panel: rgba(255, 255, 255, 0.94);
+  --garden-border: rgba(18, 44, 39, 0.1);
+  --garden-text: #16312b;
+  --garden-muted: rgba(22, 49, 43, 0.66);
+  --garden-gold: #7c8f5f;
+  --garden-red: #c43e48;
+  --garden-red-deep: #972530;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  min-height: 100vh;
+  padding: clamp(18px, 4vw, 48px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 14%, rgba(90, 138, 112, 0.26), transparent 30%),
+    radial-gradient(circle at 82% 10%, rgba(126, 150, 122, 0.16), transparent 28%),
+    linear-gradient(145deg, #12342f 0%, #0b211d 52%, #081613 100%);
+}
+
+.auth-shell--secret-garden::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -6;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12)),
+    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.04), rgba(2, 12, 11, 0.38) 76%);
+}
+
+.auth-shell--secret-garden::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -5;
+  background:
+    radial-gradient(circle at 50% 42%, transparent 0 24%, rgba(0, 0, 0, 0.1) 62%, rgba(0, 0, 0, 0.46) 100%);
+  pointer-events: none;
+}
+
+.auth-panel--garden {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: none;
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.garden-arc,
+.garden-bloom,
+.garden-leaves {
+  display: none;
+}
+
+.login-card--garden {
+  width: min(100%, 520px);
+  min-height: 0;
+  padding: clamp(28px, 3.2vw, 38px) clamp(22px, 4vw, 42px) clamp(24px, 3vw, 32px);
+  border: 1px solid var(--garden-border);
+  border-radius: clamp(24px, 3vw, 32px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 248, 0.92)),
+    var(--garden-panel);
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
+  animation: gardenCardIn 0.62s cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+@keyframes gardenCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.brand-wordmark {
+  margin: 0 0 14px;
+  color: #325f53;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(13px, 1.6vw, 15px);
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.brand-wordmark--plain {
+  padding-left: 0.28em;
+}
+
+.login-card--garden h1 {
+  margin: 0 0 8px;
+  color: var(--garden-text);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(28px, 3.4vw, 36px);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-align: center;
+  text-shadow: none;
+}
+
+.login-card--garden .auth-meta {
+  margin: 0 0 clamp(18px, 2.5vw, 24px);
+  color: var(--garden-muted);
+  font-size: clamp(14px, 1.5vw, 16px);
+  line-height: 1.45;
+  text-align: center;
+}
+
+.login-card--garden .auth-error {
+  margin: 0 0 18px;
+  border-style: solid;
+  border-color: rgba(236, 70, 69, 0.46);
+  background: rgba(119, 18, 25, 0.26);
+  color: #ffe4de;
+}
+
+.login-card--garden .auth-field {
+  margin-bottom: 16px;
+  gap: 9px;
+}
+
+.login-card--garden .auth-field label {
+  color: rgba(22, 49, 43, 0.62);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.field-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-control .field-icon {
+  position: absolute;
+  left: 20px;
+  width: 22px;
+  height: 22px;
+  color: rgba(22, 49, 43, 0.5);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.login-card--garden .field-control input {
+  min-height: 54px;
+  border: 1px solid rgba(22, 49, 43, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #17312b;
+  padding: 16px 56px;
+  font-size: 17px;
+  line-height: 1.25;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.login-card--garden .field-control input::placeholder {
+  color: rgba(22, 49, 43, 0.38);
+}
+
+.login-card--garden .field-control input:focus {
+  border-color: rgba(80, 118, 102, 0.52);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 0 0 4px rgba(80, 118, 102, 0.1),
+    0 12px 30px rgba(5, 20, 18, 0.12);
+  transform: translateY(-1px);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(22, 49, 43, 0.48);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.password-toggle:hover {
+  background: rgba(22, 49, 43, 0.06);
+  color: #17312b;
+  transform: translateY(-1px);
+}
+
+.password-toggle svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-toggle .icon-eye-off,
+.password-toggle.is-visible .icon-eye {
+  display: none;
+}
+
+.password-toggle.is-visible .icon-eye-off {
+  display: block;
+}
+
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 2px 0 20px;
+  color: rgba(22, 49, 43, 0.72);
+  font-size: 15px;
+}
+
+.remember-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.remember-control span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 1px solid rgba(22, 49, 43, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #507666;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.remember-control span::before {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0;
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+.remember-control input:checked + span {
+  border-color: rgba(80, 118, 102, 0.56);
+  background: rgba(80, 118, 102, 0.08);
+  box-shadow: 0 0 16px rgba(80, 118, 102, 0.12);
+}
+
+.remember-control input:checked + span::before {
+  opacity: 1;
+}
+
+.forgot-link {
+  color: rgba(50, 95, 83, 0.88);
+  text-decoration: underline;
+  text-decoration-color: rgba(213, 187, 114, 0.42);
+  text-underline-offset: 3px;
+  transition: color 0.18s ease, text-decoration-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.forgot-link:hover {
+  color: #17312b;
+  text-decoration-color: currentColor;
+}
+
+.login-card--garden .auth-submit {
+  min-height: 58px;
+  margin: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(196, 62, 72, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 42%),
+    linear-gradient(135deg, #d84f5a 0%, #c63d49 46%, #a42935 100%);
+  color: #fff9f4;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow:
+    0 0 18px rgba(215, 45, 58, 0.18),
+    0 16px 30px rgba(100, 6, 18, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.login-card--garden .auth-submit:hover {
+  border-color: rgba(196, 62, 72, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 42%),
+    linear-gradient(135deg, #df5862 0%, #cc4350 46%, #ae2e3a 100%);
+  box-shadow:
+    0 0 24px rgba(230, 57, 70, 0.24),
+    0 20px 34px rgba(100, 6, 18, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.auth-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  margin: 22px 0 18px;
+  color: rgba(22, 49, 43, 0.46);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(22, 49, 43, 0.14));
+}
+
+.auth-divider::after {
+  background: linear-gradient(90deg, rgba(22, 49, 43, 0.14), transparent);
+}
+
+.secure-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(22, 49, 43, 0.72);
+}
+
+.secure-login svg {
+  width: 38px;
+  height: 38px;
+  color: #6c8964;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 16px rgba(223, 196, 122, 0.14));
+}
+
+.secure-login strong,
+.secure-login span {
+  display: block;
+}
+
+.secure-login strong {
+  color: #17312b;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.secure-login span {
+  margin-top: 4px;
+  color: rgba(22, 49, 43, 0.54);
+  font-size: 14px;
+}
+
+.login-card--garden .auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.login-card--garden .auth-actions .btn {
+  min-height: 48px;
+  border-radius: 14px;
+  background: rgba(22, 49, 43, 0.04);
+  color: rgba(22, 49, 43, 0.86);
+}
+
+.login-card--garden .auth-actions .btn:hover {
+  background: rgba(22, 49, 43, 0.08);
+  border-color: rgba(22, 49, 43, 0.16);
+}
+
+@media (max-width: 760px) {
+  .auth-shell--secret-garden {
+    min-height: 100svh;
+    padding: 18px 14px;
+  }
+
+  .login-card--garden {
+    padding: 24px 18px 22px;
+    border-radius: 26px;
+  }
+
+  .brand-wordmark {
+    margin-bottom: 18px;
+    max-width: 100%;
+    font-size: clamp(12px, 3.8vw, 14px);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .login-card--garden h1 {
+    max-width: 100%;
+    font-size: clamp(27px, 7.4vw, 31px);
+    overflow-wrap: anywhere;
+  }
+
+  .login-card--garden .auth-meta {
+    margin-bottom: 22px;
+    max-width: 24ch;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 14px;
+  }
+
+  .login-card--garden .field-control input {
+    min-height: 56px;
+    padding-left: 52px;
+    padding-right: 52px;
+    font-size: 16px;
+  }
+
+  .field-control .field-icon {
+    left: 17px;
+  }
+
+  .auth-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .login-card--garden .auth-submit {
+    min-height: 58px;
+    border-radius: 16px;
+  }
+
+  .login-card--garden .auth-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 761px) and (max-height: 760px) {
+  .auth-shell--secret-garden {
+    padding: 14px 18px;
+  }
+
+  .login-card--garden {
+    width: min(100%, 520px);
+    padding: 20px 44px 18px;
+    border-radius: 30px;
+  }
+
+  .brand-wordmark {
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .login-card--garden h1 {
+    margin-bottom: 6px;
+    font-size: 34px;
+  }
+
+  .login-card--garden .auth-meta {
+    margin-bottom: 15px;
+    font-size: 15px;
+  }
+
+  .login-card--garden .auth-field {
+    margin-bottom: 12px;
+    gap: 7px;
+  }
+
+  .login-card--garden .auth-field label {
+    font-size: 12px;
+  }
+
+  .login-card--garden .field-control input {
+    min-height: 48px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    font-size: 16px;
+  }
+
+  .auth-row {
+    margin-bottom: 14px;
+  }
+
+  .login-card--garden .auth-submit {
+    min-height: 52px;
+  }
+
+  .auth-divider {
+    margin: 14px 0 12px;
+  }
+
+  .secure-login svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .secure-login strong {
+    font-size: 15px;
+  }
+
+  .secure-login span {
+    margin-top: 2px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card--garden,
+  .layout > * {
+    animation: none;
+  }
+
+  .btn,
+  .field input,
+  .password-toggle {
+    transition: none;
+  }
 }
