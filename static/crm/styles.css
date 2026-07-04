@@ -809,11 +809,31 @@ button { border: 0; cursor: pointer; }
   grid-template-columns: 1fr;
   gap: 16px;
   min-width: 0;
+  align-items: start;
+}
+
+/* Все inline-сетки задаются в fr-единицах, из-за чего колонки не могли
+   сжиматься уже своего содержимого и панели наезжали друг на друга.
+   Приводим ЛЮБУЮ колонку .dashboard-grid к сжимаемой минимальной ширине. */
+.dashboard-grid > * {
+  min-width: 0;
 }
 
 #tasks.dashboard-grid {
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
   align-items: start;
+}
+
+/* Панели единого окна не должны наезжать: колонки сжимаемы, на узких экранах
+   складываются в одну колонку. */
+#inbox .dashboard-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+}
+
+@media (max-width: 1100px) {
+  #inbox .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .panel {
@@ -941,13 +961,20 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
 .mini-item .head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .mini-item .title {
   font-weight: 600;
   letter-spacing: -0.02em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mini-item .head .chip {
+  flex: 0 0 auto;
 }
 
 .mini-item .meta {
@@ -1208,6 +1235,19 @@ tr:hover td { background: rgba(45, 138, 78, 0.04); }
 @media (max-width: 1240px) {
   .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split-grid { grid-template-columns: 1fr; }
+}
+
+/* На узких экранах любые многоколоночные рабочие сетки складываем в одну
+   колонку, чтобы панели не наезжали друг на друга. */
+@media (max-width: 1024px) {
+  .dashboard-grid,
+  #tasks.dashboard-grid,
+  #products.dashboard-grid,
+  #knowledge.dashboard-grid,
+  #analytics.dashboard-grid,
+  #admin.dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 960px) {
