@@ -10,4 +10,5 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('client/<int:client_id>/json/', views.client_detail_json, name='client_json'),
     path('api/site/webhook/', views.site_webhook, name='site_webhook'),
+    path('api/tg-qr-status/', views.tg_qr_status, name='tg_qr_status'),
 ]

@@ -37,7 +37,7 @@ from .contact_utils import (
     sanitize_client_contacts,
     split_client_name,
 )
-from .models import AuditEntry, Client, ClockEvent, DictionaryEntry, EmployeeProfile, FraudEvent, IntegrationEvent, KnowledgeArticle, Message, NewsItem, Order, Product, RolePermission, ScheduleSettings, ScriptRule, ShiftAssignment, Task, UploadedFile
+from .models import AuditEntry, Client, ClockEvent, DictionaryEntry, EmployeeProfile, FraudEvent, IntegrationEvent, KnowledgeArticle, Message, NewsItem, Order, Product, RolePermission, ScheduleSettings, ScriptRule, ShiftAssignment, Task, TelegramLoginSession, UploadedFile
 from .one_c_import import import_nomenclature
 
 logger = logging.getLogger(__name__)
@@ -177,6 +177,8 @@ ACTION_PERMISSIONS = {
     'save_permission': (RolePermission.Resource.ADMIN, 'write'),
     'add_shift': (RolePermission.Resource.ADMIN, 'write'),
     'delete_shift': (RolePermission.Resource.ADMIN, 'delete'),
+    'tg_qr_start': (RolePermission.Resource.ADMIN, 'write'),
+    'tg_qr_password': (RolePermission.Resource.ADMIN, 'write'),
 }
 
 DEFAULT_KNOWLEDGE_LIBRARY = [
@@ -1645,6 +1647,8 @@ def dashboard(request):
             'delete_order': _delete_order,
             'add_shift': _add_shift,
             'delete_shift': _delete_shift,
+            'tg_qr_start': _tg_qr_start,
+            'tg_qr_password': _tg_qr_password,
         }.get(action)
         if handler:
             try:
@@ -1846,8 +1850,13 @@ def dashboard(request):
 
     role = _current_role(request.user)
     god_mode_messages = None
+    tg_session = None
+    tg_auth_status = None
     if role == EmployeeProfile.Role.ADMIN and page == 'admin':
         god_mode_messages = Message.objects.select_related('client', 'assigned_to').all()[:50]
+        from .tg_integration import tg_account_auth_status
+        tg_session = TelegramLoginSession.load()
+        tg_auth_status = tg_account_auth_status()
 
     dict_tags = list(DictionaryEntry.objects.filter(dict_type=DictionaryEntry.DictType.TAG)[:50])
     dict_statuses = list(DictionaryEntry.objects.filter(dict_type=DictionaryEntry.DictType.STATUS)[:50])
@@ -1980,6 +1989,8 @@ def dashboard(request):
         'fraud_events': fraud_events,
         'uploaded_files': uploaded_files,
         'god_mode_messages': god_mode_messages,
+        'tg_session': tg_session,
+        'tg_auth_status': tg_auth_status,
         'buyers_count': buyers_count,
         'unknown_count': unknown_count,
         'total_clients': total_clients,
@@ -2651,6 +2662,18 @@ def _delete_user(request):
     return redirect(f"{reverse('crm:dashboard')}?page=admin")
 
 
+def _tg_qr_start(request):
+    from .tg_integration import start_tg_qr_login
+    start_tg_qr_login()
+    return redirect(f"{reverse('crm:dashboard')}?page=admin")
+
+
+def _tg_qr_password(request):
+    from .tg_integration import submit_tg_qr_password
+    submit_tg_qr_password(request.POST.get('password', ''))
+    return redirect(f"{reverse('crm:dashboard')}?page=admin")
+
+
 def _import_csv_users(request):
     raw_csv = request.POST.get('csv_data', '').strip()
     if not raw_csv:
@@ -3253,6 +3276,19 @@ def _save_schedule(request):
 def _redirect_to_client(request, client_id):
     page = request.GET.get('page', 'clients')
     return f"{reverse('crm:dashboard')}?page={page}&client={client_id or ''}"
+
+
+@login_required
+def tg_qr_status(request):
+    if not _has_permission(request.user, RolePermission.Resource.ADMIN, 'read'):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    session = TelegramLoginSession.load()
+    return JsonResponse({
+        'status': session.status,
+        'status_display': session.get_status_display(),
+        'qr_data_uri': session.qr_data_uri,
+        'message': session.message,
+    })
 
 
 @login_required

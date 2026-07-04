@@ -1653,6 +1653,31 @@ new.sales,Ольга Ким,front,olga@plants.local,true</textarea>
             {% endfor %}
           </div>
         </div>
+        <div class="panel">
+          <h3 class="section-title">Telegram-аккаунт</h3>
+          <p class="section-desc">Переавторизация MTProto-сессии, если она слетела.</p>
+          <div id="tg-qr-status">
+            <p id="tg-qr-message" class="meta">{{ tg_session.message|default:tg_auth_status.message }}</p>
+            <div id="tg-qr-image">
+              {% if tg_session.qr_data_uri %}
+                <img src="{{ tg_session.qr_data_uri }}" alt="QR-код Telegram" style="width: 220px; height: 220px;">
+              {% endif %}
+            </div>
+            <form id="tg-qr-password-form" method="post" style="{% if tg_session.status != 'password_required' %}display:none;{% endif %} margin-top: 12px;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="tg_qr_password">
+              <div class="row" style="gap: 8px; align-items: center;">
+                <input type="password" name="password" placeholder="Пароль 2FA Telegram" autocomplete="off" style="max-width: 220px;">
+                <button class="btn primary" type="submit">Отправить пароль</button>
+              </div>
+            </form>
+          </div>
+          <form method="post" style="margin-top: 12px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="tg_qr_start">
+            <button class="btn" type="submit">Сгенерировать QR</button>
+          </form>
+        </div>
         <div class="panel" style="grid-column: 1 / -1;">
           <h3>Скрипты автоматических ответов</h3>
           <p class="section-desc">Триггер-ответ для быстрых шаблонов в едином окне.</p>
@@ -2038,5 +2063,26 @@ function editScript(id, trigger, answer) {
 function fillScript(text) {
   document.getElementById('reply-text').value = text;
 }
+(function () {
+  var messageEl = document.getElementById('tg-qr-message');
+  var imageEl = document.getElementById('tg-qr-image');
+  var passwordForm = document.getElementById('tg-qr-password-form');
+  if (!messageEl || !imageEl || !passwordForm) return;
+
+  function poll() {
+    fetch('{% url "crm:tg_qr_status" %}', {credentials: 'same-origin'})
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        messageEl.textContent = data.message || data.status_display;
+        imageEl.innerHTML = data.qr_data_uri
+          ? '<img src="' + data.qr_data_uri + '" alt="QR-код Telegram" style="width: 220px; height: 220px;">'
+          : '';
+        passwordForm.style.display = data.status === 'password_required' ? 'block' : 'none';
+      })
+      .catch(function () {});
+  }
+
+  setInterval(poll, 2000);
+})();
 </script>
 {% endblock %}
