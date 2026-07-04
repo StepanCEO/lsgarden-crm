@@ -19,7 +19,7 @@ def normalize_phone(value: str) -> str:
     if len(digits) != 11 or not digits.startswith('79'):
         return ''
 
-    return f'+{digits}'
+    return digits
 
 
 def normalize_email(value: str) -> str:

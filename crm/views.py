@@ -45,10 +45,10 @@ logger = logging.getLogger(__name__)
 ROLE_SECTIONS = {
     EmployeeProfile.Role.ADMIN: ['dashboard', 'inbox', 'clients', 'tasks', 'products', 'knowledge', 'analytics', 'admin'],
     EmployeeProfile.Role.FRONT: ['dashboard', 'inbox', 'clients', 'tasks', 'knowledge', 'analytics'],
-    EmployeeProfile.Role.BACK: ['dashboard', 'tasks', 'products', 'knowledge', 'analytics'],
+    EmployeeProfile.Role.BACK: ['dashboard', 'inbox', 'tasks', 'products', 'knowledge', 'analytics'],
     EmployeeProfile.Role.HYBRID: ['dashboard', 'inbox', 'clients', 'tasks', 'products', 'knowledge', 'analytics'],
     EmployeeProfile.Role.CONTENT: ['dashboard', 'inbox', 'knowledge', 'analytics'],
-    EmployeeProfile.Role.LOCOMOTIVE: ['dashboard', 'tasks', 'products', 'knowledge', 'analytics'],
+    EmployeeProfile.Role.LOCOMOTIVE: ['dashboard', 'inbox', 'tasks', 'products', 'knowledge', 'analytics'],
 }
 
 NAV_LABELS = {
@@ -93,11 +93,13 @@ DEFAULT_ROLE_PERMISSIONS = {
     },
     EmployeeProfile.Role.BACK: {
         RolePermission.Resource.DASHBOARD: {'read': True, 'write': False, 'delete': False},
+        RolePermission.Resource.INBOX: {'read': True, 'write': True, 'delete': False},
         RolePermission.Resource.TASKS: {'read': True, 'write': True, 'delete': False},
         RolePermission.Resource.PRODUCTS: {'read': True, 'write': True, 'delete': False},
         RolePermission.Resource.KNOWLEDGE: {'read': True, 'write': False, 'delete': False},
         RolePermission.Resource.ANALYTICS: {'read': True, 'write': False, 'delete': False},
         RolePermission.Resource.ORDERS: {'read': True, 'write': True, 'delete': False},
+        RolePermission.Resource.MESSAGES: {'read': True, 'write': True, 'delete': False},
     },
     EmployeeProfile.Role.HYBRID: {
         RolePermission.Resource.DASHBOARD: {'read': True, 'write': False, 'delete': False},
@@ -120,6 +122,7 @@ DEFAULT_ROLE_PERMISSIONS = {
     },
     EmployeeProfile.Role.LOCOMOTIVE: {
         RolePermission.Resource.DASHBOARD: {'read': True, 'write': False, 'delete': False},
+        RolePermission.Resource.INBOX: {'read': True, 'write': True, 'delete': False},
         RolePermission.Resource.TASKS: {'read': True, 'write': True, 'delete': False},
         RolePermission.Resource.PRODUCTS: {'read': True, 'write': False, 'delete': False},
         RolePermission.Resource.KNOWLEDGE: {'read': True, 'write': False, 'delete': False},
@@ -1306,21 +1309,22 @@ def _lookup_user_by_email(email):
     return None
 
 
-def _send_code_email(email, code):
+def _send_code_email(email, code, display_name=''):
+    who = f' для {display_name}' if display_name else ''
     send_mail(
-        subject='Код входа в LSG CRM',
-        message=f'Ваш код для входа: {code}\n\nКод действителен 5 минут.',
+        subject=f'Код входа в LSG CRM{who}',
+        message=f'Код входа{who}: {code}\n\nКод действителен 5 минут.\n\nЕсли это были не вы — проигнорируйте письмо.',
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[email],
         fail_silently=False,
     )
 
-def _send_code_email_with_timeout(email, code, timeout=15):
+def _send_code_email_with_timeout(email, code, display_name='', timeout=15):
     import threading
     result = []
     def _do_send():
         try:
-            _send_code_email(email, code)
+            _send_code_email(email, code, display_name)
             result.append(True)
         except Exception as e:
             result.append(e)
@@ -1453,7 +1457,7 @@ def login_view(request):
                         login_identifier = identifier
                         login_display_name = _display_login_name(authenticated_user)
                         try:
-                            _send_code_email_with_timeout(email, code)
+                            _send_code_email_with_timeout(email, code, login_display_name)
                         except Exception:
                             error = f'Код для входа: {code} (не удалось отправить на почту)'
 
@@ -1464,7 +1468,7 @@ def login_view(request):
                 request.session['login_code'] = code
                 request.session['login_expiry'] = (timezone.now() + timedelta(minutes=5)).isoformat()
                 try:
-                    _send_code_email_with_timeout(email, code)
+                    _send_code_email_with_timeout(email, code, request.session.get('login_display_name', ''))
                 except Exception:
                         error = f'Код для входа: {code} (не удалось отправить на почту)'
             else:

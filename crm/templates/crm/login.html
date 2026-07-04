@@ -7,7 +7,7 @@
     {% if step == 'credentials' %}
     <form class="login-card login-card--brand login-card--garden" method="post">
       {% csrf_token %}
-      <p class="brand-wordmark brand-wordmark--plain">LSGARDEN CRM</p>
+      <img class="login-logo" src="{% static 'crm/secret-garden-logo.svg' %}" alt="Secret Garden CRM">
       <h1>Вход в систему</h1>
       <p class="auth-meta">Введите логин и пароль, чтобы продолжить работу</p>
       {% if error %}<div class="ghost-box auth-error">{{ error }}</div>{% endif %}
@@ -67,7 +67,7 @@
     {% elif step == 'code' %}
     <form class="login-card login-card--brand login-card--garden" method="post">
       {% csrf_token %}
-      <p class="brand-wordmark brand-wordmark--plain">LSGARDEN CRM</p>
+      <img class="login-logo" src="{% static 'crm/secret-garden-logo.svg' %}" alt="Secret Garden CRM">
       <h1>Код подтверждения</h1>
       <p class="auth-meta">{{ login_display_name }} · {{ login_email }}</p>
       {% if error %}<div class="ghost-box auth-error">{{ error }}</div>{% endif %}

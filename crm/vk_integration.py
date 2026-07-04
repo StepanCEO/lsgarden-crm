@@ -198,6 +198,250 @@ def _store_vk_message(
     return True
 
 
+def _vk_wall_comment_signature(owner_id: int, post_id: int, comment_id) -> str:
+    return f'wall{owner_id}_{post_id}:{comment_id}'
+
+
+def _store_vk_wall_comment(
+    *,
+    owner_id: int,
+    post_id: int,
+    comment: dict,
+    user_profiles: dict[int, dict] | None = None,
+    existing_event_ids: set[str] | None = None,
+) -> bool:
+    comment_id = comment.get('id')
+    event_id = _vk_wall_comment_signature(owner_id, post_id, comment_id)
+    if existing_event_ids is not None and event_id in existing_event_ids:
+        return False
+
+    if IntegrationEvent.objects.filter(source='VK', event_type='wall_comment', external_id=event_id).exists():
+        if existing_event_ids is not None:
+            existing_event_ids.add(event_id)
+        return False
+
+    from_id = int(comment.get('from_id') or 0)
+    if from_id <= 0:
+        # Комментарий от имени сообщества (наш же ответ) или некорректный автор — пропускаем.
+        return False
+
+    text = _vk_message_text(comment)
+    if not text:
+        return False
+
+    profile_map = user_profiles or {}
+    author_name = _vk_profile_name(profile_map.get(from_id), f'Пользователь VK (id{from_id})')
+    contact = f'vk.com/id{from_id}'
+    client = _find_or_create_client(author_name, contact, from_id)
+
+    created_at = _vk_message_created_at(comment)
+    db_message = Message.objects.create(
+        channel=VK_CHANNEL,
+        direction=Message.Direction.INBOUND,
+        client=client,
+        author_name=author_name,
+        contact=contact,
+        text=f'[Комментарий к посту] {text}',
+        unread=True,
+    )
+    Message.objects.filter(pk=db_message.pk).update(created_at=created_at)
+    IntegrationEvent.objects.create(
+        source='VK',
+        event_type='wall_comment',
+        external_id=event_id,
+        payload={
+            'owner_id': owner_id,
+            'post_id': post_id,
+            'comment_id': comment_id,
+            'from_id': from_id,
+        },
+    )
+    if existing_event_ids is not None:
+        existing_event_ids.add(event_id)
+
+    client.source = 'VK'
+    client.preferred_channel = client.preferred_channel or 'VK'
+    client.contact_aliases = sorted(set((client.contact_aliases or []) + parse_contact_aliases([contact])))
+    client.save(update_fields=['source', 'preferred_channel', 'contact_aliases', 'updated_at'])
+    return True
+
+
+def _iter_vk_wall_posts(group_id: int, post_limit: int | None = None):
+    offset = 0
+    batch_size = 100
+    fetched = 0
+    while True:
+        count = batch_size
+        if post_limit is not None:
+            remaining = post_limit - fetched
+            if remaining <= 0:
+                return
+            count = min(batch_size, remaining)
+
+        response = _vk_request('wall.get', {
+            'owner_id': -abs(group_id),
+            'count': count,
+            'offset': offset,
+        })
+        if not response:
+            return
+
+        items = response.get('items', [])
+        if not items:
+            return
+
+        for post in items:
+            yield post
+        fetched += len(items)
+        offset += len(items)
+        if len(items) < count:
+            return
+        time.sleep(0.1)
+
+
+def _sync_vk_wall_comments_for_post(
+    *,
+    owner_id: int,
+    post_id: int,
+    existing_event_ids: set[str],
+    comment_limit: int | None = None,
+    stop_on_seen: bool = False,
+) -> int:
+    imported = 0
+    offset = 0
+    batch_size = 100
+    loaded = 0
+    while True:
+        count = batch_size
+        if comment_limit is not None:
+            remaining = comment_limit - loaded
+            if remaining <= 0:
+                break
+            count = min(batch_size, remaining)
+
+        response = _vk_request('wall.getComments', {
+            'owner_id': owner_id,
+            'post_id': post_id,
+            'count': count,
+            'offset': offset,
+            'sort': 'desc',
+            'extended': 1,
+        })
+        if not response:
+            break
+
+        items = response.get('items', [])
+        if not items:
+            break
+
+        profiles_map = _vk_profiles_map(response.get('profiles'))
+        saw_seen = False
+        for comment in items:
+            event_id = _vk_wall_comment_signature(owner_id, post_id, comment.get('id'))
+            if event_id in existing_event_ids:
+                saw_seen = True
+                continue
+            if _store_vk_wall_comment(
+                owner_id=owner_id,
+                post_id=post_id,
+                comment=comment,
+                user_profiles=profiles_map,
+                existing_event_ids=existing_event_ids,
+            ):
+                imported += 1
+
+        loaded += len(items)
+        if stop_on_seen and saw_seen:
+            break
+        if len(items) < count:
+            break
+        offset += len(items)
+        time.sleep(0.1)
+
+    return imported
+
+
+def poll_vk_wall_comments(post_limit: int = 20) -> dict:
+    token = getattr(settings, 'VK_API_TOKEN', '')
+    if not token:
+        return {'status': 'error', 'message': 'VK token not configured', 'imported': 0}
+
+    raw_group_id = str(getattr(settings, 'VK_GROUP_ID', '') or '').strip()
+    if not raw_group_id.isdigit():
+        return {'status': 'error', 'message': 'VK_GROUP_ID not configured', 'imported': 0}
+    group_id = int(raw_group_id)
+    owner_id = -group_id
+
+    existing_event_ids = set(
+        IntegrationEvent.objects.filter(source='VK', event_type='wall_comment').values_list('external_id', flat=True)
+    )
+
+    imported = 0
+    posts_checked = 0
+    errors = 0
+    for post in _iter_vk_wall_posts(group_id, post_limit=post_limit):
+        posts_checked += 1
+        try:
+            imported += _sync_vk_wall_comments_for_post(
+                owner_id=owner_id,
+                post_id=post.get('id'),
+                existing_event_ids=existing_event_ids,
+                stop_on_seen=True,
+            )
+        except Exception as e:
+            logger.error(f'Failed to sync VK wall comments for post {post.get("id")}: {e}')
+            errors += 1
+
+    return {
+        'status': 'ok',
+        'message': f'Imported {imported} VK wall comments from {posts_checked} posts ({errors} errors)',
+        'imported': imported,
+        'posts': posts_checked,
+        'errors': errors,
+    }
+
+
+def sync_vk_wall_comments_history(post_limit: int | None = None, comment_limit: int | None = None) -> dict:
+    token = getattr(settings, 'VK_API_TOKEN', '')
+    if not token:
+        return {'status': 'error', 'message': 'VK token not configured', 'imported': 0}
+
+    raw_group_id = str(getattr(settings, 'VK_GROUP_ID', '') or '').strip()
+    if not raw_group_id.isdigit():
+        return {'status': 'error', 'message': 'VK_GROUP_ID not configured', 'imported': 0}
+    group_id = int(raw_group_id)
+    owner_id = -group_id
+
+    existing_event_ids = set(
+        IntegrationEvent.objects.filter(source='VK', event_type='wall_comment').values_list('external_id', flat=True)
+    )
+
+    imported = 0
+    posts_checked = 0
+    errors = 0
+    for post in _iter_vk_wall_posts(group_id, post_limit=post_limit):
+        posts_checked += 1
+        try:
+            imported += _sync_vk_wall_comments_for_post(
+                owner_id=owner_id,
+                post_id=post.get('id'),
+                existing_event_ids=existing_event_ids,
+                comment_limit=comment_limit,
+                stop_on_seen=False,
+            )
+        except Exception as e:
+            logger.error(f'Failed to sync VK wall comments for post {post.get("id")}: {e}')
+            errors += 1
+
+    return {
+        'status': 'ok',
+        'message': f'Imported {imported} VK wall comments from {posts_checked} posts ({errors} errors)',
+        'imported': imported,
+        'posts': posts_checked,
+        'errors': errors,
+    }
+
+
 def sync_vk_history(conversation_limit: int | None = None, history_limit: int | None = None) -> dict:
     token = getattr(settings, 'VK_API_TOKEN', '')
     if not token:

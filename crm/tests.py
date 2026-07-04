@@ -44,7 +44,7 @@ class BankCsvImportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         client = Client.objects.get()
-        self.assertEqual(client.phone, '+79841932183')
+        self.assertEqual(client.phone, '79841932183')
         self.assertEqual(client.name, 'Мария Сергеевна К.')
         self.assertEqual(client.status, Client.Status.BUYER)
         self.assertEqual(len(client.bank_purchases), 1)
@@ -68,7 +68,7 @@ class BankCsvImportTests(TestCase):
 
         existing.refresh_from_db()
         self.assertEqual(existing.name, 'Мария Сергеевна К.')
-        self.assertEqual(existing.phone, '+79841932183')
+        self.assertEqual(existing.phone, '79841932183')
         self.assertEqual(len(existing.bank_purchases), 1)
 
         second_upload = SimpleUploadedFile('bank.csv', csv_content.encode('utf-8'))
@@ -112,7 +112,7 @@ class SiteWebhookTests(TestCase):
         order = Order.objects.get()
         event = IntegrationEvent.objects.get()
 
-        self.assertEqual(client.phone, '+79991234567')
+        self.assertEqual(client.phone, '79991234567')
         self.assertEqual(client.email, 'maria@example.com')
         self.assertEqual(client.source, 'Сайт')
         self.assertIn('Орхидея Фаленопсис', client.wish_list)
@@ -465,8 +465,8 @@ class ClientSchemaTests(TestCase):
         self.assertEqual(client.first_name, 'Анна')
         self.assertEqual(client.patronymic, 'Сергеевна')
         self.assertEqual(str(client.birth_date), '1995-04-12')
-        self.assertEqual(client.phone, '+79991234567')
-        self.assertEqual(client.second_phone, '+79120000001')
+        self.assertEqual(client.phone, '79991234567')
+        self.assertEqual(client.second_phone, '79120000001')
         self.assertEqual(client.vk_url, 'vk.com/id777')
         self.assertEqual(client.telegram_url, 'tg://user?id=777')
         self.assertEqual(client.whatsapp_url, 'wa.me/79991234567')

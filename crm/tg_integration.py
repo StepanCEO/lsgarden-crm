@@ -1,15 +1,25 @@
+import asyncio
+import base64
 import getpass
+import io
 import logging
 import re
+import threading
+import time
 from pathlib import Path
 
 import requests
 
 from django.conf import settings
+from django.db import connections
 from django.utils import timezone
 
 from .contact_utils import parse_contact_aliases
-from .models import Client, IntegrationEvent, Message, ScheduleSettings
+from .models import Client, IntegrationEvent, Message, ScheduleSettings, TelegramLoginSession
+
+QR_LOGIN_TOTAL_TIMEOUT = 180  # секунд на всю попытку логина
+QR_LOGIN_STEP_TIMEOUT = 25  # телеграмовский QR-токен живёт ~30 сек, обновляем чуть раньше
+QR_LOGIN_PASSWORD_TIMEOUT = 120  # сколько ждём ввод пароля 2FA из админки
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +52,10 @@ def _tg_session_path() -> Path:
 
 def _load_telethon():
     try:
+        # ВАЖНО: импорт telethon.sync включает синхронные обёртки над async-методами
+        # (connect/get_dialogs/send_message и т.д.). Без него методы возвращают
+        # корутины, и account-режим не работает.
+        import telethon.sync  # noqa: F401
         from telethon import TelegramClient
         from telethon.errors import SessionPasswordNeededError
         return TelegramClient, SessionPasswordNeededError
@@ -57,7 +71,24 @@ def _telethon_client():
         raise RuntimeError('Telethon not installed. Rebuild the app after updating requirements.')
     if not api_id or not api_hash:
         raise RuntimeError('TG_API_ID and TG_API_HASH are required for Telegram account mode.')
-    return TelegramClient(str(_tg_session_path()), int(api_id), api_hash)
+
+    kwargs = {}
+    proxy_host = str(getattr(settings, 'TG_PROXY_HOST', '') or '').strip()
+    proxy_port = str(getattr(settings, 'TG_PROXY_PORT', '') or '').strip()
+    proxy_secret = str(getattr(settings, 'TG_PROXY_SECRET', '') or '').strip()
+    # На серверах, где Telegram заблокирован напрямую, ходим через MTProxy.
+    if proxy_host and proxy_port and proxy_secret:
+        from telethon.network import ConnectionTcpMTProxyRandomizedIntermediate
+        secret = proxy_secret
+        # Telethon для randomized-intermediate ждёт секрет с dd-маркером поверх
+        # 16-байтного ключа. Если дали «голый» 16-байтный секрет (32 hex) —
+        # добавляем маркер сами.
+        if len(secret) == 32:
+            secret = 'dd' + secret
+        kwargs['connection'] = ConnectionTcpMTProxyRandomizedIntermediate
+        kwargs['proxy'] = (proxy_host, int(proxy_port), secret)
+
+    return TelegramClient(str(_tg_session_path()), int(api_id), api_hash, **kwargs)
 
 
 def tg_request(method, params=None):
@@ -389,6 +420,157 @@ def setup_tg_account_session():
             password = getpass.getpass('Введите пароль 2FA Telegram: ')
             client.sign_in(password=password)
         print('Telegram account session saved successfully.')
+
+
+def tg_account_auth_status() -> dict:
+    """Быстрая проверка: авторизована ли сейчас сессия аккаунта.
+
+    Важно: нельзя использовать `with _telethon_client() as client:` — Telethon
+    на __enter__ синхронного клиента вызывает client.start(), который при
+    неавторизованной сессии уходит в интерактивный запрос телефона/кода через
+    input() и падает с EOF (нет TTY). Здесь сессия как раз может быть
+    неавторизована, поэтому подключаемся вручную через connect().
+    """
+    if _tg_mode() != 'account':
+        return {'authorized': False, 'message': 'Telegram account mode отключен (TG_INTEGRATION_MODE != account).'}
+
+    TelegramClient, _ = _load_telethon()
+    if not TelegramClient:
+        return {'authorized': False, 'message': 'Telethon не установлен.'}
+
+    client = _telethon_client()
+    try:
+        client.connect()
+        authorized = client.is_user_authorized()
+        return {
+            'authorized': authorized,
+            'message': 'Сессия авторизована.' if authorized else 'Сессия не авторизована — нужен вход.',
+        }
+    except Exception as e:
+        return {'authorized': False, 'message': str(e)}
+    finally:
+        client.disconnect()
+
+
+def _qr_data_uri(url: str) -> str:
+    import qrcode
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    encoded = base64.b64encode(buf.getvalue()).decode('ascii')
+    return f'data:image/png;base64,{encoded}'
+
+
+def _set_qr_state(**fields):
+    TelegramLoginSession.objects.filter(pk=1).update(**fields)
+
+
+def start_tg_qr_login() -> dict:
+    """Запускает фоновый поток с QR-логином Telegram-аккаунта. Состояние флоу
+    хранится в БД (TelegramLoginSession), т.к. gunicorn работает несколькими
+    воркерами и опрос статуса может попасть на другой процесс."""
+    if _tg_mode() != 'account':
+        return {'status': 'error', 'message': 'Telegram account mode отключен (TG_INTEGRATION_MODE != account).'}
+
+    TelegramClient, _ = _load_telethon()
+    if not TelegramClient:
+        return {'status': 'error', 'message': 'Telethon не установлен.'}
+
+    session = TelegramLoginSession.load()
+    if session.status in (TelegramLoginSession.Status.WAITING, TelegramLoginSession.Status.PASSWORD_REQUIRED):
+        return {'status': 'already_running', 'message': 'QR-логин уже запущен.'}
+
+    TelegramLoginSession.objects.filter(pk=session.pk).update(
+        status=TelegramLoginSession.Status.WAITING,
+        qr_data_uri='',
+        message='Готовим QR-код...',
+        pending_password='',
+    )
+    threading.Thread(target=_run_tg_qr_login, daemon=True).start()
+    return {'status': 'ok', 'message': 'QR-логин запущен.'}
+
+
+def _wait_for_qr_password(timeout_seconds: int):
+    _set_qr_state(
+        status=TelegramLoginSession.Status.PASSWORD_REQUIRED,
+        message='Введите пароль 2FA Telegram в админке.',
+    )
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        session = TelegramLoginSession.objects.filter(pk=1).first()
+        if session and session.pending_password:
+            _set_qr_state(pending_password='')
+            return session.pending_password
+        time.sleep(1)
+    return None
+
+
+def submit_tg_qr_password(password: str) -> dict:
+    session = TelegramLoginSession.load()
+    if session.status != TelegramLoginSession.Status.PASSWORD_REQUIRED:
+        return {'status': 'error', 'message': 'Пароль сейчас не запрашивается.'}
+    TelegramLoginSession.objects.filter(pk=session.pk).update(pending_password=password)
+    return {'status': 'ok', 'message': 'Пароль отправлен.'}
+
+
+def _run_tg_qr_login():
+    # Telethon-синхронная обёртка держит asyncio event loop, привязанный к текущему
+    # потоку. У фонового threading.Thread его нет по умолчанию (в отличие от главного
+    # потока), поэтому без явного создания loop'а падает "no current event loop".
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    _, SessionPasswordNeededError = _load_telethon()
+    deadline = time.monotonic() + QR_LOGIN_TOTAL_TIMEOUT
+    # Нельзя использовать `with _telethon_client() as client:` — __enter__ синхронного
+    # клиента Telethon вызывает client.start(), который при неавторизованной сессии
+    # уходит в интерактивный запрос телефона/кода через input() и падает с EOF
+    # (нет TTY в потоке gunicorn-воркера). Сессия здесь не авторизована по определению
+    # (иначе QR-логин был бы не нужен), поэтому подключаемся вручную через connect().
+    client = _telethon_client()
+    try:
+        client.connect()
+        login = client.qr_login()
+        _set_qr_state(
+            status=TelegramLoginSession.Status.WAITING,
+            qr_data_uri=_qr_data_uri(login.url),
+            message='Отсканируйте QR-код в приложении Telegram (Настройки → Устройства → Подключить устройство).',
+        )
+
+        while time.monotonic() < deadline:
+            try:
+                login.wait(timeout=QR_LOGIN_STEP_TIMEOUT)
+                break
+            except asyncio.TimeoutError:
+                login.recreate()
+                _set_qr_state(qr_data_uri=_qr_data_uri(login.url))
+                continue
+            except SessionPasswordNeededError:
+                password = _wait_for_qr_password(QR_LOGIN_PASSWORD_TIMEOUT)
+                if password is None:
+                    _set_qr_state(
+                        status=TelegramLoginSession.Status.EXPIRED,
+                        message='Пароль 2FA не был введён вовремя.',
+                    )
+                    return
+                client.sign_in(password=password)
+                break
+        else:
+            _set_qr_state(
+                status=TelegramLoginSession.Status.EXPIRED,
+                message='Время ожидания скана QR истекло, попробуйте ещё раз.',
+            )
+            return
+
+        _set_qr_state(
+            status=TelegramLoginSession.Status.SUCCESS,
+            message='Вход выполнен успешно, сессия обновлена.',
+            qr_data_uri='',
+        )
+    except Exception as e:
+        logger.error('Telegram QR login error: %s', e)
+        _set_qr_state(status=TelegramLoginSession.Status.ERROR, message=str(e), qr_data_uri='')
+    finally:
+        client.disconnect()
+        connections.close_all()
 
 
 def _find_or_create_tg_client(name, contact, tg_user_id):

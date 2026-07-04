@@ -27,6 +27,9 @@ services:
       POSTGRES_PASSWORD: plant_crm
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
+    volumes:
+      # Постоянное хранилище сессии Telegram-аккаунта (Telethon) — переживает пересборки.
+      - ./tgdata:/app/tgdata
     depends_on:
       db:
         condition: service_healthy

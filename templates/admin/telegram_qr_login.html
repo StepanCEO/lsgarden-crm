@@ -1,0 +1,55 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="module" style="padding: 16px; max-width: 520px;">
+  <h2>Статус текущей сессии</h2>
+  <p>{{ auth_status.message }}</p>
+
+  <h2>QR-вход</h2>
+  <div id="tg-qr-status">
+    <p id="tg-qr-message">{{ session.message|default:"Нажмите «Сгенерировать QR», чтобы начать." }}</p>
+    <div id="tg-qr-image">
+      {% if session.qr_data_uri %}
+        <img src="{{ session.qr_data_uri }}" alt="QR-код Telegram" style="width: 260px; height: 260px;">
+      {% endif %}
+    </div>
+    <form id="tg-qr-password-form" method="post" action="{% url 'admin:telegram_qr_login_password' %}"
+          style="{% if session.status != 'password_required' %}display:none;{% endif %} margin-top: 12px;">
+      {% csrf_token %}
+      <label for="tg-qr-password">Пароль 2FA Telegram:</label>
+      <input type="password" id="tg-qr-password" name="password" autocomplete="off">
+      <button type="submit">Отправить пароль</button>
+    </form>
+  </div>
+
+  <form method="post" action="{% url 'admin:telegram_qr_login_start' %}" style="margin-top: 16px;">
+    {% csrf_token %}
+    <button type="submit">Сгенерировать QR</button>
+  </form>
+</div>
+
+<script>
+(function () {
+  const statusUrl = "{% url 'admin:telegram_qr_login_status' %}";
+  const messageEl = document.getElementById('tg-qr-message');
+  const imageEl = document.getElementById('tg-qr-image');
+  const passwordForm = document.getElementById('tg-qr-password-form');
+
+  function poll() {
+    fetch(statusUrl, {credentials: 'same-origin'})
+      .then((resp) => resp.json())
+      .then((data) => {
+        messageEl.textContent = data.message || data.status_display;
+        imageEl.innerHTML = data.qr_data_uri
+          ? '<img src="' + data.qr_data_uri + '" alt="QR-код Telegram" style="width: 260px; height: 260px;">'
+          : '';
+        passwordForm.style.display = data.status === 'password_required' ? 'block' : 'none';
+      })
+      .catch(() => {});
+  }
+
+  setInterval(poll, 2000);
+})();
+</script>
+{% endblock %}

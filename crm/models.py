@@ -519,3 +519,36 @@ class ShiftAssignment(models.Model):
     def __str__(self) -> str:
         who = self.employee.get_full_name() or self.employee.username
         return f'{self.date:%d.%m.%Y} · {who} · {self.get_role_display()}'
+
+
+class TelegramLoginSession(models.Model):
+    """Singleton-состояние флоу QR-логина Telegram-аккаунта (crm/tg_integration.py).
+    Хранится в БД, а не в памяти процесса, т.к. gunicorn работает с несколькими
+    воркерами и опрос статуса может попасть на другой воркер, чем тот, что держит
+    открытое MTProto-соединение."""
+
+    class Status(models.TextChoices):
+        IDLE = 'idle', 'Не запущен'
+        WAITING = 'waiting', 'Ждём скан QR'
+        PASSWORD_REQUIRED = 'password_required', 'Нужен пароль 2FA'
+        SUCCESS = 'success', 'Успешно'
+        ERROR = 'error', 'Ошибка'
+        EXPIRED = 'expired', 'Истекло время ожидания'
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.IDLE)
+    qr_data_uri = models.TextField(blank=True, default='')
+    message = models.CharField(max_length=255, blank=True, default='')
+    pending_password = models.CharField(max_length=255, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'QR-логин Telegram'
+        verbose_name_plural = 'QR-логин Telegram'
+
+    def __str__(self) -> str:
+        return f'TG QR-логин: {self.get_status_display()}'
+
+    @classmethod
+    def load(cls) -> 'TelegramLoginSession':
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

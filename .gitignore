@@ -31,3 +31,6 @@ db.sqlite3
 *.xlsx
 png.jpg
 _lsg_clone/
+
+# Local tool config
+.claude/

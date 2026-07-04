@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.urls import path
 
 from .models import AuditEntry, Client, DictionaryEntry, EmployeeProfile, FraudEvent, KnowledgeArticle, Message, NewsItem, Order, Product, RolePermission, ScheduleSettings, ShiftAssignment, Task, UploadedFile
 
@@ -137,3 +138,24 @@ class ShiftAssignmentAdmin(admin.ModelAdmin):
     list_filter = ('role', 'date')
     search_fields = ('employee__username', 'employee__first_name', 'employee__last_name', 'note')
     date_hierarchy = 'date'
+
+
+# Кнопка "QR-вход в Telegram-аккаунт" — на случай, если MTProto-сессия (account mode
+# в crm/tg_integration.py) слетит и потребует переавторизации без доступа к SSH.
+# Кастомного AdminSite в проекте нет, поэтому расширяем get_urls дефолтного admin.site.
+_original_admin_get_urls = admin.site.get_urls
+
+
+def _admin_get_urls():
+    from . import admin_views
+
+    custom_urls = [
+        path('telegram-qr-login/', admin.site.admin_view(admin_views.telegram_qr_login_view), name='telegram_qr_login'),
+        path('telegram-qr-login/start/', admin.site.admin_view(admin_views.telegram_qr_login_start), name='telegram_qr_login_start'),
+        path('telegram-qr-login/status/', admin.site.admin_view(admin_views.telegram_qr_login_status), name='telegram_qr_login_status'),
+        path('telegram-qr-login/password/', admin.site.admin_view(admin_views.telegram_qr_login_password), name='telegram_qr_login_password'),
+    ]
+    return custom_urls + _original_admin_get_urls()
+
+
+admin.site.get_urls = _admin_get_urls

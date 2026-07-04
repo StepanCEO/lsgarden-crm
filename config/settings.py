@@ -205,6 +205,11 @@ TG_PHONE = os.getenv('TG_PHONE', '')
 TG_SESSION_NAME = os.getenv('TG_SESSION_NAME', 'telegram_account')
 TG_DIALOG_LIMIT = int(os.getenv('TG_DIALOG_LIMIT', '50'))
 TG_HISTORY_LIMIT = int(os.getenv('TG_HISTORY_LIMIT', '40'))
+# MTProxy (для серверов, где Telegram заблокирован напрямую). Если заданы все три —
+# Telethon ходит в Telegram через этот прокси.
+TG_PROXY_HOST = os.getenv('TG_PROXY_HOST', '')
+TG_PROXY_PORT = os.getenv('TG_PROXY_PORT', '')
+TG_PROXY_SECRET = os.getenv('TG_PROXY_SECRET', '')
 
 # VK API
 VK_API_TOKEN = os.getenv('VK_API_TOKEN', '')
