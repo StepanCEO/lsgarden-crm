@@ -56,6 +56,7 @@ class Client(models.Model):
     discount_cards = models.JSONField(default=list, blank=True)
     contact_aliases = models.JSONField(default=list, blank=True)
     wish_list = models.JSONField(default=list, blank=True)
+    wish_products = models.ManyToManyField('Product', related_name='wishers', blank=True)
     wait_list = models.JSONField(default=list, blank=True)
     purchases = models.JSONField(default=list, blank=True)
     bank_purchases = models.JSONField(default=list, blank=True)

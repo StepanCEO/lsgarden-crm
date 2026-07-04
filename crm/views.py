@@ -1159,6 +1159,24 @@ def _create_site_order(client: Client, payload: dict, external_id: str) -> Order
     return order
 
 
+def _find_or_create_wishlist_product(name: str):
+    """Находим товар в каталоге по названию (без учёта регистра). Если такого
+    товара нет — заводим новый (по ТЗ: «добавляется новый товар, если его нет»)."""
+    name = (name or '').strip()
+    if not name:
+        return None
+    product = Product.objects.filter(name__iexact=name).first()
+    if product:
+        return product
+    return Product.objects.create(
+        name=name,
+        parent=name,
+        sku='',
+        kind=Product.ProductKind.PLANT,
+        price=0,
+    )
+
+
 def _merge_site_wishlist(client: Client, payload: dict, external_id: str) -> list[str]:
     names = _wishlist_names_from_payload(payload)
     if not names:
@@ -1173,6 +1191,10 @@ def _merge_site_wishlist(client: Client, payload: dict, external_id: str) -> lis
     if client.status == Client.Status.UNKNOWN and (client.email or client.phone):
         client.status = Client.Status.LEAD
     client.save(update_fields=['wish_list', 'history', 'status', 'updated_at'])
+    # Привязка вишлиста к карточкам товаров (создаём недостающие).
+    products = [p for p in (_find_or_create_wishlist_product(n) for n in names) if p]
+    if products:
+        client.wish_products.add(*products)
     return names
 
 
@@ -3268,6 +3290,10 @@ def client_detail_json(request, client_id):
         'tags': client.tags,
         'interests': client.interests,
         'wish_list': client.wish_list,
+        'wish_products': [
+            {'id': p.id, 'name': p.name, 'stock': p.stock}
+            for p in client.wish_products.all()[:50]
+        ],
         'internal_note': client.internal_note or '',
         'quality': client.quality,
         'green_list': client.green_list,

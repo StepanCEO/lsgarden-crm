@@ -14,6 +14,7 @@ class ClientAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone', 'second_phone', 'email', 'status', 'source', 'preferred_channel', 'updated_at')
     search_fields = ('name', 'last_name', 'first_name', 'patronymic', 'phone', 'second_phone', 'email', 'one_c_id', 'vk_url', 'telegram_url', 'whatsapp_url', 'contact_aliases')
     list_filter = ('status', 'source', 'preferred_channel', 'green_list', 'black_list')
+    filter_horizontal = ('wish_products',)
 
 
 @admin.register(Message)

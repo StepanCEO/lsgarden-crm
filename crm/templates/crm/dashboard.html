@@ -1955,7 +1955,13 @@ function openClientCard(clientId) {
       if (d.interests && d.interests.length) {
         html += '<div><strong>Интересы:</strong> ' + d.interests.join(', ') + '</div>';
       }
-      if (d.wish_list && d.wish_list.length) {
+      if (d.wish_products && d.wish_products.length) {
+        html += '<div style="margin-top:8px;"><strong>Хотелки (товары каталога):</strong><div class="pill-row" style="margin-top:6px;">';
+        d.wish_products.forEach(function(p) {
+          html += '<span class="chip info">' + p.name + ' · ост. ' + p.stock + '</span>';
+        });
+        html += '</div></div>';
+      } else if (d.wish_list && d.wish_list.length) {
         html += '<div><strong>Хотелки:</strong> ' + d.wish_list.join(', ') + '</div>';
       }
       if (d.internal_note) {
