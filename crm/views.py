@@ -20,7 +20,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -481,8 +481,8 @@ def _normalize_analytics_window(start_date: date | None, end_date: date | None, 
 
 def _revenue_between(start_date: date, end_date: date) -> float:
     total = 0.0
-    for client in Client.objects.all():
-        for item in (client.purchases or []):
+    for purchases, bank_purchases in Client.objects.values_list('purchases', 'bank_purchases'):
+        for item in (purchases or []):
             at = item.get('at', '')
             if not at or not isinstance(at, str) or len(at) < 10:
                 continue
@@ -492,7 +492,7 @@ def _revenue_between(start_date: date, end_date: date) -> float:
                 continue
             if start_date <= item_date <= end_date:
                 total += float(item.get('amount', 0) or 0)
-        for item in (client.bank_purchases or []):
+        for item in (bank_purchases or []):
             if not item.get('matched'):
                 continue
             at = item.get('at', '')
@@ -558,8 +558,10 @@ def _channel_analytics(start_date: date | None = None, end_date: date | None = N
         outbound = outbound_qs.count()
         unread = unread_qs.count()
         revenue = 0.0
-        for client in clients_qs:
-            for item in (client.purchases or []):
+        # JSON-поля (purchases/bank_purchases) считаем в Python, но тянем ТОЛЬКО
+        # эти столбцы одним запросом, без загрузки всей карточки клиента.
+        for purchases, bank_purchases in clients_qs.values_list('purchases', 'bank_purchases'):
+            for item in (purchases or []):
                 at = item.get('at', '')
                 if start_date and end_date and isinstance(at, str) and len(at) >= 10:
                     try:
@@ -569,7 +571,7 @@ def _channel_analytics(start_date: date | None = None, end_date: date | None = N
                     if item_date and not (start_date <= item_date <= end_date):
                         continue
                 revenue += float(item.get('amount', 0) or 0)
-            for item in (client.bank_purchases or []):
+            for item in (bank_purchases or []):
                 if item.get('matched'):
                     at = item.get('at', '')
                     if start_date and end_date and isinstance(at, str) and len(at) >= 10:
@@ -580,13 +582,13 @@ def _channel_analytics(start_date: date | None = None, end_date: date | None = N
                         if item_date and not (start_date <= item_date <= end_date):
                             continue
                     revenue += float(item.get('amount', 0) or 0)
-            orders_qs = client.orders.exclude(status=Order.Status.CANCELLED)
-            if start_date:
-                orders_qs = orders_qs.filter(created_at__date__gte=start_date)
-            if end_date:
-                orders_qs = orders_qs.filter(created_at__date__lte=end_date)
-            for order in orders_qs:
-                revenue += float(order.total or 0)
+        # Выручку по заказам берём ОДНИМ агрегатом на канал, а не запросом на клиента.
+        orders_qs = Order.objects.exclude(status=Order.Status.CANCELLED).filter(client__in=clients_qs)
+        if start_date:
+            orders_qs = orders_qs.filter(created_at__date__gte=start_date)
+        if end_date:
+            orders_qs = orders_qs.filter(created_at__date__lte=end_date)
+        revenue += float(orders_qs.aggregate(s=Sum('total'))['s'] or 0)
         conversion = round((buyers / clients_count) * 100, 1) if clients_count else 0
         answer_rate = round((outbound / inbound) * 100, 1) if inbound else 0
         rows.append({
@@ -674,7 +676,7 @@ def _analytics_snapshot(start_date: date, end_date: date) -> dict:
         'task_completion_rate': round((done_tasks_period.count() / tasks_period_qs.count()) * 100, 1) if tasks_period_qs.exists() else 0,
         'overdue_rate': round((overdue_open / open_tasks_period.count()) * 100, 1) if open_tasks_period.exists() else 0,
         'avg_response_minutes': round(sum(avg_response_values) / len(avg_response_values), 1) if avg_response_values else None,
-        'stock_value': round(sum(max(product.stock - product.reserve, 0) * float(product.price or 0) for product in Product.objects.all()), 2),
+        'stock_value': round(sum(max(stock - reserve, 0) * float(price or 0) for stock, reserve, price in Product.objects.values_list('stock', 'reserve', 'price')), 2),
     }
     return {
         'start_date': start_date,
@@ -690,12 +692,43 @@ def _analytics_snapshot(start_date: date, end_date: date) -> dict:
         'task_status_waiting': tasks_period_qs.filter(status=Task.Status.WAITING).count(),
         'task_status_done': done_tasks_period.count(),
         'order_count': orders_period_qs.count(),
-        'order_revenue': round(sum(float(order.total or 0) for order in orders_period_qs), 2),
+        'order_revenue': round(float(orders_period_qs.aggregate(s=Sum('total'))['s'] or 0), 2),
         'buyers_count': buyers_count,
         'leads_count': clients_period_qs.filter(status=Client.Status.LEAD).count(),
         'unknown_count': clients_period_qs.filter(status=Client.Status.UNKNOWN).count(),
         'total_clients': period_clients,
         'top_channels': sorted(channel_stats, key=lambda item: item['revenue'], reverse=True)[:5],
+    }
+
+
+def _empty_analytics_snapshot() -> dict:
+    """Пустой снапшот с теми же ключами — для страниц, где аналитика не нужна
+    (чтобы не гонять дорогой _analytics_snapshot на каждый клик)."""
+    today = timezone.localdate()
+    return {
+        'start_date': today,
+        'end_date': today,
+        'start_dt': None,
+        'end_dt': None,
+        'employee_kpi': [],
+        'channel_stats': [],
+        'buyers_growth': [],
+        'analytics_summary': {
+            'period_label': '', 'period_revenue': 0, 'period_clients': 0, 'period_buyers': 0,
+            'period_orders': 0, 'conversion_rate': 0, 'task_completion_rate': 0,
+            'overdue_rate': 0, 'avg_response_minutes': None, 'stock_value': 0,
+        },
+        'task_status_new': 0,
+        'task_status_in_progress': 0,
+        'task_status_waiting': 0,
+        'task_status_done': 0,
+        'order_count': 0,
+        'order_revenue': 0,
+        'buyers_count': 0,
+        'leads_count': 0,
+        'unknown_count': 0,
+        'total_clients': 0,
+        'top_channels': [],
     }
 
 
@@ -1744,42 +1777,7 @@ def dashboard(request):
                 matched.append({'id': None, 'trigger': item['trigger'], 'answer': item['answer']})
         return matched[:3]
 
-    def _revenue_for_period(start_date):
-        total = 0.0
-        for client in Client.objects.all():
-            for item in (client.purchases or []):
-                at = item.get('at', '')
-                if at and isinstance(at, str) and len(at) >= 10:
-                    try:
-                        item_date = datetime.fromisoformat(at).date()
-                        if item_date >= start_date:
-                            total += float(item.get('amount', 0))
-                    except (ValueError, TypeError):
-                        total += float(item.get('amount', 0))
-            for item in (client.bank_purchases or []):
-                if not item.get('matched'):
-                    continue
-                at = item.get('at', '')
-                if at and isinstance(at, str) and len(at) >= 10:
-                    try:
-                        item_date = datetime.fromisoformat(at).date()
-                        if item_date >= start_date:
-                            total += float(item.get('amount', 0))
-                    except (ValueError, TypeError):
-                        if item.get('matched'):
-                            total += float(item.get('amount', 0))
-        for order in Order.objects.exclude(status='cancelled'):
-            od = order.created_at.date()
-            if od >= start_date:
-                total += float(order.total)
-        return total
-
     now_date = timezone.now().date()
-    revenue_today = _revenue_for_period(now_date)
-    revenue_week = _revenue_for_period(now_date - timedelta(days=7))
-    revenue_month = _revenue_for_period(now_date - timedelta(days=30))
-    revenue_6months = _revenue_for_period(now_date - timedelta(days=180))
-    revenue_total = _revenue_for_period(now_date - timedelta(days=36500))
     leads_count = Client.objects.filter(status=Client.Status.LEAD).count()
 
     # Период-фильтр дашборда (календарь c/по). По умолчанию — последние 7 дней,
@@ -1794,33 +1792,57 @@ def dashboard(request):
     dash_end_dt = timezone.make_aware(datetime.combine(dash_end, dt_time.max))
 
     schedule_settings = ScheduleSettings.objects.first()
-    unanswered_by_channel = _unanswered_by_channel(start_dt=dash_start_dt)
-    unanswered_total = sum(row['count'] for row in unanswered_by_channel)
-    active_chats = Message.objects.filter(direction=Message.Direction.INBOUND, unread=True).count()
-    overdue_count = _overdue_working_hours(schedule_settings)
-    shift_summary = _shift_summary()
 
-    buyers_count = Client.objects.filter(status=Client.Status.BUYER).count()
-    unknown_count = Client.objects.filter(status=Client.Status.UNKNOWN).count()
-    total_clients = Client.objects.count()
-    total_products = Product.objects.count()
-    critical_stock = Product.objects.filter(status=Product.StockStatus.CRITICAL).count()
-    low_stock = Product.objects.filter(status=Product.StockStatus.LOW).count()
+    # Тяжёлые вычисления считаем ТОЛЬКО для той страницы, где они реально нужны,
+    # иначе каждый клик по любому разделу гонял аналитику по всем сообщениям/
+    # пользователям (~3200 запросов, ~5 сек). Дашборд-метрики и разбивка по
+    # каналам нужны только на самом дашборде.
+    if page == 'dashboard':
+        unanswered_by_channel = _unanswered_by_channel(start_dt=dash_start_dt)
+        unanswered_total = sum(row['count'] for row in unanswered_by_channel)
+        active_chats = Message.objects.filter(direction=Message.Direction.INBOUND, unread=True).count()
+        overdue_count = _overdue_working_hours(schedule_settings)
+        shift_summary = _shift_summary()
+        buyers_count = Client.objects.filter(status=Client.Status.BUYER).count()
+        unknown_count = Client.objects.filter(status=Client.Status.UNKNOWN).count()
+        total_clients = Client.objects.count()
+    else:
+        unanswered_by_channel = []
+        unanswered_total = 0
+        active_chats = 0
+        overdue_count = 0
+        shift_summary = []
+        buyers_count = unknown_count = total_clients = 0
+
+    # Склад-метрики нужны на products и analytics.
+    if page in ('products', 'analytics'):
+        total_products = Product.objects.count()
+        critical_stock = Product.objects.filter(status=Product.StockStatus.CRITICAL).count()
+        low_stock = Product.objects.filter(status=Product.StockStatus.LOW).count()
+    else:
+        total_products = critical_stock = low_stock = 0
+
     analytics_start_input = request.GET.get('analytics_start', '')
     analytics_end_input = request.GET.get('analytics_end', '')
-    analytics_start = _parse_optional_date(analytics_start_input)
-    analytics_end = _parse_optional_date(analytics_end_input)
-    analytics_snapshot = _analytics_snapshot(
-        analytics_start or (timezone.localdate() - timedelta(days=29)),
-        analytics_end or timezone.localdate(),
-    )
-    analytics_start_input = analytics_snapshot['start_date'].isoformat()
-    analytics_end_input = analytics_snapshot['end_date'].isoformat()
-    duplicate_candidates = _client_duplicate_candidates()
+    # Аналитический снапшот (самая дорогая операция) — только на странице аналитики.
+    if page == 'analytics':
+        analytics_start = _parse_optional_date(analytics_start_input)
+        analytics_end = _parse_optional_date(analytics_end_input)
+        analytics_snapshot = _analytics_snapshot(
+            analytics_start or (timezone.localdate() - timedelta(days=29)),
+            analytics_end or timezone.localdate(),
+        )
+        analytics_start_input = analytics_snapshot['start_date'].isoformat()
+        analytics_end_input = analytics_snapshot['end_date'].isoformat()
+    else:
+        analytics_snapshot = _empty_analytics_snapshot()
+
+    # Поиск дублей клиентов — только на странице клиентов.
+    duplicate_candidates = _client_duplicate_candidates() if page == 'clients' else []
 
     role = _current_role(request.user)
     god_mode_messages = None
-    if role == EmployeeProfile.Role.ADMIN:
+    if role == EmployeeProfile.Role.ADMIN and page == 'admin':
         god_mode_messages = Message.objects.select_related('client', 'assigned_to').all()[:50]
 
     dict_tags = list(DictionaryEntry.objects.filter(dict_type=DictionaryEntry.DictType.TAG)[:50])
@@ -1927,11 +1949,6 @@ def dashboard(request):
         'shift_summary': shift_summary,
         'dash_start': dash_start.isoformat(),
         'dash_end': dash_end.isoformat(),
-        'revenue_today': revenue_today,
-        'revenue_week': revenue_week,
-        'revenue_month': revenue_month,
-        'revenue_6months': revenue_6months,
-        'revenue_total': revenue_total,
         'message_query': search,
         'task_query': search,
         'client_query': search,
